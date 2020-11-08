@@ -726,7 +726,6 @@ if __name__=="__main__":
             s, r, done, info = env.step(a)
             total_reward += r
             if steps % 200 == 0 or done:
-                #FIXME(IG): The total reward seems to be shown wrongly.
                 print("\nActions: " + str.join(" ", [f"Car {x}: "+str(a[x]) for x in range(NUM_CARS)]))
                 print(f"Step {steps} Total_reward "+str(total_reward))
                 #import matplotlib.pyplot as plt
