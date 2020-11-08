@@ -63,7 +63,7 @@ Overview of environment parameters:
 | `h_ratio`              |`float`| Controls horizontal agent location in the state (Default: `0.25`) |
 | `use_ego_color`        |`bool` | In each view the ego vehicle has the same color if  activated (Default: `False`). |
 
-This environment contains the `CarRacing-v0` environment as special case. It can be created via
+This environment contains the `CarRacing-v0` environment as a special case. It can be created via
 
 ```python
 env = gym.make("MultiCarRacing-v0", num_agents=1, use_random_direction=False, 
