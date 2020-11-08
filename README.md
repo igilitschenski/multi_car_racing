@@ -2,7 +2,7 @@
 <img width="100%" src="https://user-images.githubusercontent.com/11874191/98051650-5339d900-1e02-11eb-8b75-7f241d8687ef.gif"></img>
 This repository contains `MultiCarRacing-v0` a multiplayer variant of Gym's original [`CarRacing-v0` environment](https://gym.openai.com/envs/CarRacing-v0/).
 
-This environment is a simple multi-player continuous contorl task. The state consists of 96x96 pixels for each player. The per-player rewrad is `-0.1` every timestep and `+1000/num_tiles * (num_agents-past_visitors)/num_agents` for each tile visited. For example, in a race with 2 agents, the first agent to visit a tile receives a reward of `+1000/num_tiles` and the second agent to visit a tile receives a reward of `+500/num_tiles` for that tile. Each agent can be only rewarded once for visiting a particular tile. The idea of this reward structure is to be sufficiently dense for simple learnability of the basic driving skill while incentivising competition.
+This environment is a simple multi-player continuous contorl task. The state consists of 96x96 pixels for each player. The per-player reward is `-0.1` every timestep and `+1000/num_tiles * (num_agents-past_visitors)/num_agents` for each tile visited. For example, in a race with 2 agents, the first agent to visit a tile receives a reward of `+1000/num_tiles` and the second agent to visit the tile receives a reward of `+500/num_tiles` for that tile. Each agent can only be rewarded once for visiting a particular tile. The motivation behind this reward structure is to be sufficiently dense for simple learnability of the basic driving skill while incentivising competition.
 
 ## Installation
 
@@ -19,7 +19,7 @@ After installation, the environment can be tried out by running:
 python -m gym_multi_car_racing.multi_car_racing
 ```
 
-This will launch a two-playver variant (each player in its own window) that can be controlled via keyboard (player 1 via arrow keys and player 2 via `W`, `A`, `S`, `D`).
+This will launch a two-player variant (each player in its own window) that can be controlled via the keyboard (player 1 via arrow keys and player 2 via `W`, `A`, `S`, `D`).
 
 Let's quickly walk through how this environment can be used in your code:
 
