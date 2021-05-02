@@ -1,4 +1,4 @@
-import sys, math
+import sys, math, random
 import numpy as np
 
 import Box2D
@@ -337,7 +337,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                                   range(len(self.road_poly))]
         return True
 
-    def reset(self):
+    def reset(self, soft=False):
         self._destroy()
         self.reward = np.zeros(self.num_agents)
         self.prev_reward = np.zeros(self.num_agents)
@@ -356,14 +356,19 @@ class MultiCarRacing(gym.Env, EzPickle):
         shuffle_ids = np.random.choice(ids, size=self.num_agents, replace=False)
         self.car_order = {i: shuffle_ids[i] for i in range(self.num_agents)}
 
-        while True:
-            success = self._create_track()
-            if success:
-                break
-            if self.verbose == 1:
-                print("retry to generate track (normal if there are not many of this messages)")
+        if soft:
+            print('Track generation: soft track reset')
+            (angle, pos_x, pos_y) = random.choice(self.track)[1:4]
+        else:
+            while True:
+                success = self._create_track()
+                if success:
+                    break
+                if self.verbose == 1:
+                    print("retry to generate track (normal if there are not many of this messages)")
 
-        (angle, pos_x, pos_y) = self.track[0][1:4]
+            (angle, pos_x, pos_y) = self.track[0][1:4]
+
         car_width = car_dynamics.SIZE * (car_dynamics.WHEEL_W * 2 \
             + (car_dynamics.WHEELPOS[1][0]-car_dynamics.WHEELPOS[1][0]))
         for car_id in range(self.num_agents):
