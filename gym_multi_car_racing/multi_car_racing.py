@@ -133,6 +133,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                  use_ego_color=False):
         EzPickle.__init__(self)
         self.seed()
+        self.num_feats = 32
         self.num_agents = num_agents
         self.contactListener_keepref = FrictionDetector(self)
         self.world = Box2D.b2World((0,0), contactListener=self.contactListener_keepref)
@@ -151,6 +152,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                     [(0, 0),(1, 0),(1, -1),(0, -1)]))
         self.driving_backward = np.zeros(num_agents, dtype=bool)
         self.driving_on_grass = np.zeros(num_agents, dtype=bool)
+        self.all_feats = np.zeros((num_agents, self.num_feats)) # for now we assume 32 features
         self.use_random_direction = use_random_direction  # Whether to select direction randomly
         self.episode_direction = direction  # Choose 'CCW' (default) or 'CW' (flipped)
         if self.use_random_direction:  # Choose direction randomly
@@ -348,6 +350,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         # Reset driving backwards/on-grass states and track direction
         self.driving_backward = np.zeros(self.num_agents, dtype=bool)
         self.driving_on_grass = np.zeros(self.num_agents, dtype=bool)
+        self.all_feats = np.zeros((self.num_agents, self.num_feats))
         if self.use_random_direction:  # Choose direction randomly
             self.episode_direction = np.random.choice(['CW', 'CCW'])
 
@@ -461,10 +464,12 @@ class MultiCarRacing(gym.Env, EzPickle):
                                           float(car_pos[:, 1])))
 
 
+                # Compute 10-closest points on track to car position
+                distance_to_tiles = car_pos - np.array(self.track)[:10, 2:]
+                
                 # Compute closest point on track to car position (l2 norm)
-                distance_to_tiles = np.linalg.norm(
-                    car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
-                track_index = np.argmin(distance_to_tiles)
+                norm_to_all_tiles = np.linalg.norm(car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
+                track_index = np.argmin(norm_to_all_tiles)
 
                 # Check if car is driving on grass by checking inside polygons
                 on_grass = not np.array([car_pos_as_point.within(polygon)
@@ -494,6 +499,16 @@ class MultiCarRacing(gym.Env, EzPickle):
                 else:
                     self.driving_backward[car_id] = False
 
+                # save the features that are going to be used, features are explained in get_feat function
+                self.all_feats[car_id,0:2] = car_pos
+                self.all_feats[car_id,2] = car_angle
+                self.all_feats[car_id,3] = angle_diff
+                self.all_feats[car_id,4] = self.driving_on_grass[car_id]
+                self.all_feats[car_id,5] = self.driving_backward[car_id]
+                self.all_feats[car_id,6:26] = np.reshape(distance_to_tiles, [1, -1])
+                # for single agent there is no other car, for multiple cars it will be done later
+                self.all_feats[car_id,26:32] = np.zeros((1,6)) 
+
             self.prev_reward = self.reward.copy()
             if len(self.track) in self.tile_visited_count:
                 done = True
@@ -507,6 +522,22 @@ class MultiCarRacing(gym.Env, EzPickle):
                     step_reward[car_id] = -100
 
         return self.state, step_reward, done, {}
+
+    def get_feat(self, car_id):
+        '''
+        Given a car ID, this function will return the corresponding
+        32 features as follows:
+        pos: position of the car (2x1)
+        car_angle: angle of the var (1x1)
+        angle_diff: angle diff between next tile and the angle of the car (1x1)
+        driving_on_grass: whether we are on grass or track (1x1)
+        driving_backward: whether we are going forward or backward (1x1)
+        distance_to_tiles: distances to next 10 tiles (10x2)
+        distance_to_others: distances to closest 3 cars (3x2) 
+        '''
+
+        return self.all_feats[car_id,:]
+
 
     def render(self, mode='human'):
         assert mode in ['human', 'state_pixels', 'rgb_array']
