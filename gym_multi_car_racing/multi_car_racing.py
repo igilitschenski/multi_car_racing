@@ -417,7 +417,11 @@ class MultiCarRacing(gym.Env, EzPickle):
             action(np.ndarray): Numpy array of shape (num_agents,3) containing the
                 commands for each car. Each command is of the shape (steer, gas, brake).
         """
-
+        if hasattr(self, 'state'):
+            self.prev_state = self.state
+        else:
+            self.prev_state = None
+            
         if action is not None:
             # NOTE: re-shape action as input action is flattened
             action = np.reshape(action, (self.num_agents, -1))
@@ -521,7 +525,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                     done = True
                     step_reward[car_id] = -100
 
-        return self.state, step_reward, done, {}
+        return self.state, self.prev_state, step_reward, done
 
     def get_feat(self, car_id):
         '''
