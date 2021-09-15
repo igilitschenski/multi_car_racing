@@ -1,5 +1,6 @@
 import gym
 import gym_multi_car_racing
+import random
 
 env = gym.make("MultiCarRacing-v0", num_agents=1, direction='CCW',
         use_random_direction=True, backwards_flag=True, h_ratio=0.25,
@@ -12,7 +13,7 @@ total_reward = 0
 while not done:
   # The actions have to be of the format (num_agents,3)
   # The action format for each car is as in the CarRacing-v0 environment.
-  action = env.action_space.sample() # taking random action
+  action = env.action_space[random.randint(0, len(env.action_space) - 1)] # taking random action
 
   # Similarly, the structure of this is the same as in CarRacing-v0 with an
   # additional dimension for the different agents, i.e.

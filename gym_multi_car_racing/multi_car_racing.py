@@ -161,10 +161,16 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.h_ratio = h_ratio  # Configures vertical location of car within rendered window
         self.use_ego_color = use_ego_color  # Whether to make ego car always render as the same color
 
-        self.action_lb = np.tile(np.array([-1,+0,+0]), 1)  # self.num_agents)
-        self.action_ub = np.tile(np.array([+1,+1,+1]), 1)  # self.num_agents)
+        # self.action_lb = np.tile(np.array([-1,+0,+0]), 1)  # self.num_agents)
+        # self.action_ub = np.tile(np.array([+1,+1,+1]), 1)  # self.num_agents)
 
-        self.action_space = spaces.Box( self.action_lb, self.action_ub, dtype=np.float32)  # (steer, gas, brake) x N
+        # self.action_space = spaces.Box( self.action_lb, self.action_ub, dtype=np.float32)  # (steer, gas, brake) x N
+        self.action_space = [
+            (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2), #           Action Space Structure
+            (-1, 1,   0), (0, 1,   0), (1, 1,   0), #        (Steering Wheel, Gas, Break)
+            (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2), # Range        -1~1       0~1   0~1
+            (-1, 0,   0), (0, 0,   0), (1, 0,   0)
+        ]
         self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
 
 
@@ -407,7 +413,7 @@ class MultiCarRacing(gym.Env, EzPickle):
             # This will be used to identify the car that touches a particular tile.
             for wheel in self.cars[car_id].wheels:
                 wheel.car_id = car_id
-
+            self._collect_features(car_id)
         return self.step(None)[0]
 
     def step(self, action):
@@ -451,67 +457,13 @@ class MultiCarRacing(gym.Env, EzPickle):
 
             # Add penalty for driving backward
             for car_id, car in enumerate(self.cars):  # Enumerate through cars
-
-                # Get car speed
-                vel = car.hull.linearVelocity
-                if np.linalg.norm(vel) > 0.5:  # If fast, compute angle with v
-                    car_angle = -math.atan2(vel[0], vel[1])
-                else:  # If slow, compute with hull
-                    car_angle = car.hull.angle
-
-                # Map angle to [0, 2pi] interval
-                car_angle = (car_angle + (2 * np.pi)) % (2 * np.pi)
-
-                # Retrieve car position
-                car_pos = np.array(car.hull.position).reshape((1, 2))
-                car_pos_as_point = Point((float(car_pos[:, 0]),
-                                          float(car_pos[:, 1])))
-
-
-                # Compute 10-closest points on track to car position
-                distance_to_tiles = car_pos - np.array(self.track)[:10, 2:]
-                
-                # Compute closest point on track to car position (l2 norm)
-                norm_to_all_tiles = np.linalg.norm(car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
-                track_index = np.argmin(norm_to_all_tiles)
-
-                # Check if car is driving on grass by checking inside polygons
-                on_grass = not np.array([car_pos_as_point.within(polygon)
-                                   for polygon in self.road_poly_shapely]).any()
-                self.driving_on_grass[car_id] = on_grass
-
-                # Find track angle of closest point
-                desired_angle = self.track[track_index][1]
-
-                # If track direction reversed, reverse desired angle
-                if self.episode_direction == 'CW':  # CW direction indicates reversed
-                    desired_angle += np.pi
-
-                # Map angle to [0, 2pi] interval
-                desired_angle = (desired_angle + (2 * np.pi)) % (2 * np.pi)
-
-                # Compute smallest angle difference between desired and car
-                angle_diff = abs(desired_angle - car_angle)
-                if angle_diff > np.pi:
-                    angle_diff = abs(angle_diff - 2 * np.pi)
+                self._collect_features(car_id)
 
                 # If car is driving backward and not on grass, penalize car. The
                 # backwards flag is set even if it is driving on grass.
+                angle_diff = self.all_feats[car_id, 3]
                 if angle_diff > BACKWARD_THRESHOLD:
-                    self.driving_backward[car_id] = True
                     step_reward[car_id] -= K_BACKWARD * angle_diff
-                else:
-                    self.driving_backward[car_id] = False
-
-                # save the features that are going to be used, features are explained in get_feat function
-                self.all_feats[car_id,0:2] = car_pos
-                self.all_feats[car_id,2] = car_angle
-                self.all_feats[car_id,3] = angle_diff
-                self.all_feats[car_id,4] = self.driving_on_grass[car_id]
-                self.all_feats[car_id,5] = self.driving_backward[car_id]
-                self.all_feats[car_id,6:26] = np.reshape(distance_to_tiles, [1, -1])
-                # for single agent there is no other car, for multiple cars it will be done later
-                self.all_feats[car_id,26:32] = np.zeros((1,6)) 
 
             self.prev_reward = self.reward.copy()
             if len(self.track) in self.tile_visited_count:
@@ -525,7 +477,72 @@ class MultiCarRacing(gym.Env, EzPickle):
                     done = True
                     step_reward[car_id] = -100
 
-        return self.state, self.prev_state, step_reward, done
+        return self.all_feats, step_reward, done, {}
+
+    def _collect_features(self, car_id):
+        car = self.cars[car_id]
+        if car is None:
+            raise ValueError('Car not initialized yet in _collect_features')
+
+        # Get car speed
+        vel = car.hull.linearVelocity
+        if np.linalg.norm(vel) > 0.5:  # If fast, compute angle with v
+            car_angle = -math.atan2(vel[0], vel[1])
+        else:  # If slow, compute with hull
+            car_angle = car.hull.angle
+
+        # Map angle to [0, 2pi] interval
+        car_angle = (car_angle + (2 * np.pi)) % (2 * np.pi)
+
+        # Retrieve car position
+        car_pos = np.array(car.hull.position).reshape((1, 2))
+        car_pos_as_point = Point((float(car_pos[:, 0]),
+                                  float(car_pos[:, 1])))
+
+        # Compute 10-closest points on track to car position
+        distance_to_tiles = car_pos - np.array(self.track)[:10, 2:]
+
+        # Compute closest point on track to car position (l2 norm)
+        norm_to_all_tiles = np.linalg.norm(car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
+        track_index = np.argmin(norm_to_all_tiles)
+
+        # Check if car is driving on grass by checking inside polygons
+        on_grass = not np.array([car_pos_as_point.within(polygon)
+                                 for polygon in self.road_poly_shapely]).any()
+        self.driving_on_grass[car_id] = on_grass
+
+        # Find track angle of closest point
+        desired_angle = self.track[track_index][1]
+
+        # If track direction reversed, reverse desired angle
+        if self.episode_direction == 'CW':  # CW direction indicates reversed
+            desired_angle += np.pi
+
+        # Map angle to [0, 2pi] interval
+        desired_angle = (desired_angle + (2 * np.pi)) % (2 * np.pi)
+
+        # Compute smallest angle difference between desired and car
+        angle_diff = abs(desired_angle - car_angle)
+        if angle_diff > np.pi:
+            angle_diff = abs(angle_diff - 2 * np.pi)
+
+        # If car is driving backward and not on grass, penalize car. The
+        # backwards flag is set even if it is driving on grass.
+        if angle_diff > BACKWARD_THRESHOLD:
+            self.driving_backward[car_id] = True
+        else:
+            self.driving_backward[car_id] = False
+
+        # save the features that are going to be used, features are explained in get_feat function
+        self.all_feats[car_id, 0:2] = car_pos
+        self.all_feats[car_id, 2] = car_angle
+        self.all_feats[car_id, 3] = angle_diff
+        self.all_feats[car_id, 4] = self.driving_on_grass[car_id]
+        self.all_feats[car_id, 5] = self.driving_backward[car_id]
+        self.all_feats[car_id, 6:26] = np.reshape(distance_to_tiles, [1, -1])
+        # for single agent there is no other car, for multiple cars it will be done later
+        self.all_feats[car_id, 26:32] = np.zeros((1, 6))
+
 
     def get_feat(self, car_id):
         '''
