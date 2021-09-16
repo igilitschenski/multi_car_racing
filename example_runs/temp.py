@@ -1,3 +1,8 @@
+'''
+This is an example script to run the multi-agent car racing environment
+but with a single car. Actions are discretized and states are features
+obtained from the game
+'''
 import gym
 import gym_multi_car_racing
 import random
@@ -11,18 +16,19 @@ done = False
 total_reward = 0
 
 while not done:
-  # The actions have to be of the format (num_agents,3)
-  # The action format for each car is as in the CarRacing-v0 environment.
-  action = env.action_space[random.randint(0, len(env.action_space) - 1)] # taking random action
+  # actions are discretized as follows:
+  # 1-) left and little gas,  2-) little gas,       3-) right and little gas
+  # 4-) left and gas,         5-) gas,              6-) right and gas
+  # 7-) left and brake,       8-) brake,            9-) right and brake
+  # 10-) left,                11-) nothing,         12-) right
+  action = random.randint(0, env.action_space.n - 1) # taking random action
 
-  # Similarly, the structure of this is the same as in CarRacing-v0 with an
-  # additional dimension for the different agents, i.e.
-  # obs is of shape (num_agents, 96, 96, 3)
-  # reward is of shape (num_agents,)
+  # state is the feature vectors from the game
+  # reward is the step reward at the current time step
   # done is a bool and info is not used (an empty dict).
-  cur_obs, prev_obs, reward, done = env.step(action)
+  state, reward, done, info = env.step(action)
 
-  # feature is a vector of 32x1, go to get_feat for more details
+  # features can be obtained for each car as follows
   feats = env.get_feat(car_id=0) 
   print(feats.shape)
 
