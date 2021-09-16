@@ -507,12 +507,18 @@ class MultiCarRacing(gym.Env, EzPickle):
         car_pos_as_point = Point((float(car_pos[:, 0]),
                                   float(car_pos[:, 1])))
 
-        # Compute 10-closest points on track to car position
-        distance_to_tiles = car_pos - np.array(self.track)[:10, 2:]
-
         # Compute closest point on track to car position (l2 norm)
         norm_to_all_tiles = np.linalg.norm(car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
         track_index = np.argmin(norm_to_all_tiles)
+
+        # Compute 10-closest points on track to car position
+        len_tile = np.shape(self.track)[0]
+        ### TODO: track index is the index of the closest tile, but we should somehow determine
+        ### whether we want to start from that and increase or decrease the indices for the 
+        ### next 10 tiles
+        next_tile_idx = np.arange(track_index,track_index+10,1)
+        next_tile_idx = next_tile_idx % len_tile
+        distance_to_tiles = car_pos - np.array(self.track)[next_tile_idx, 2:]
 
         # Check if car is driving on grass by checking inside polygons
         on_grass = not np.array([car_pos_as_point.within(polygon)

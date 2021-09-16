@@ -6,6 +6,7 @@ obtained from the game
 import gym
 import gym_multi_car_racing
 import random
+import numpy as np
 
 env = gym.make("MultiCarRacing-v0", num_agents=1, direction='CCW',
         use_random_direction=True, backwards_flag=True, h_ratio=0.25,
@@ -14,6 +15,7 @@ env = gym.make("MultiCarRacing-v0", num_agents=1, direction='CCW',
 obs = env.reset()
 done = False
 total_reward = 0
+counter = 0
 
 while not done:
   # actions are discretized as follows:
@@ -30,7 +32,17 @@ while not done:
 
   # features can be obtained for each car as follows
   feats = env.get_feat(car_id=0) 
-  print(feats.shape)
+  if counter % 20 == 0:
+    print('\n\nFeature space: {}'.format(feats.shape))
+    print('Position of the car: {}'.format(feats[0:2]))
+    print('Car angle: {:.3f} pi, and angle different: {:.3f} pi'.format(feats[2]/np.pi, feats[3]/np.pi))
+    print('On Grass: {}'.format(feats[4]))
+    print('Going Backward: {}'.format(feats[5]))
+    
+    distances = np.reshape(feats[6:26], [10, -1])
+    for ii in range(10):
+      print('{}-th tile ahead, distance: {}'.format(ii, distances[ii,:]))
+
 
   total_reward += reward
   env.render()
