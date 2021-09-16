@@ -161,18 +161,25 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.h_ratio = h_ratio  # Configures vertical location of car within rendered window
         self.use_ego_color = use_ego_color  # Whether to make ego car always render as the same color
 
+        # Normally actions are continuous but we will discretize
         # self.action_lb = np.tile(np.array([-1,+0,+0]), 1)  # self.num_agents)
         # self.action_ub = np.tile(np.array([+1,+1,+1]), 1)  # self.num_agents)
 
         # self.action_space = spaces.Box( self.action_lb, self.action_ub, dtype=np.float32)  # (steer, gas, brake) x N
-        self.action_space = [
+        self.action_space = spaces.Discrete(12)
+        self.cont_action_space = [
             (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2), #           Action Space Structure
             (-1, 1,   0), (0, 1,   0), (1, 1,   0), #        (Steering Wheel, Gas, Break)
             (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2), # Range        -1~1       0~1   0~1
             (-1, 0,   0), (0, 0,   0), (1, 0,   0)
         ]
-        self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
 
+        # Normally observations are raw images, but we will rather use 32 features from the game
+        # self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+        self.observation_lb = -2000*np.ones((1, self.num_feats))
+        self.observation_ub = 2000*np.ones((1, self.num_feats))
+        self.observation_space = spaces.Box(self.observation_lb, self.observation_ub, 
+                            shape=(self.num_agents, self.num_feats), dtype=np.float32)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -430,11 +437,12 @@ class MultiCarRacing(gym.Env, EzPickle):
             
         if action is not None:
             # NOTE: re-shape action as input action is flattened
-            action = np.reshape(action, (self.num_agents, -1))
+            cont_action = self.cont_action_space[action]
+            cont_action = np.reshape(cont_action, (self.num_agents, -1))
             for car_id, car in enumerate(self.cars):
-                car.steer(-action[car_id][0])
-                car.gas(action[car_id][1])
-                car.brake(action[car_id][2])
+                car.steer(-cont_action[car_id][0])
+                car.gas(cont_action[car_id][1])
+                car.brake(cont_action[car_id][2])
 
         for car in self.cars:
             car.step(1.0/FPS)
