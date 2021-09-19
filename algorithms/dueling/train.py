@@ -8,16 +8,16 @@ from DuelingDDQN import DuelingDDQN
 from collections import deque
 
 # Set parameters
-max_training_episodes = 5
+max_training_episodes = 40
 stack_size = 4
 batch_size = 64
-save_frequency = 10
-update_frequency = 5
+save_frequency = 5
+update_frequency = 4
 memory_size = 5000
 gamma = 0.95  # discount rate
 epsilon = 1.0   # Initial exploration rate
 epsilon_min = 0.1
-epsilon_decay = 0.9999 
+epsilon_decay = 0.999
 learning_rate = 0.001
 skip_frames = 2 
 tolerance_steps = 100
@@ -35,8 +35,8 @@ if __name__ == '__main__':
     agent = DuelingDDQN(feature_size=env.num_feats*stack_size, action_size=12,learning_rate = learning_rate, memory_size = memory_size)
    
     if load_weights:
-        agent.load_weights('path to the latest saved model') 
-
+        agent.load_weights('.\save\\trial_7.h5') 
+    counter = 0
     for episode in range(max_training_episodes):
         done = False
         env.reset()
@@ -53,7 +53,7 @@ if __name__ == '__main__':
             action = action_space[action_index]
             reward = 0
             for _ in range(skip_frames+1):
-                next_state, r, done, info = env.step(action)
+                next_state, r, done, info = env.step(action_index)
                 reward += r
                 if done:
                     break
@@ -82,13 +82,16 @@ if __name__ == '__main__':
                     epsilon *= epsilon_decay
                     
             time_frame_counter += 1
-            print('Episode: {}/{}, Steps: {}, Total Rewards: {}, Epsilon'.format(episode, max_training_episodes, time_frame_counter, float(total_reward), float(epsilon)))
-
+            print('Episode: {}/{}, Steps: {}, Total Rewards: {}, Epsilon: {}'.format(episode, max_training_episodes, time_frame_counter, float(total_reward), float(epsilon)))
+            #if counter % 50 == 0:
+                #agent.save_weights('.\save\\trial_{}.h5'.format(episode),overwrite=True)
+            counter += 1
+            
         if episode % update_frequency == 0:
             agent.update_target_model()
             print('Target model updated\n')
 
-        #if episode % save_frequency == 0:
-            #agent.save_weights('.\save\trial_{}.h5'.format(episode))
+        if episode % save_frequency == 0:
+            agent.save_weights('.\save\\trial_{}.h5'.format(episode), overwrite=True)
 
     env.close()
