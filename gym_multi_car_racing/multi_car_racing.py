@@ -496,6 +496,33 @@ class MultiCarRacing(gym.Env, EzPickle):
 
         return self.all_feats, step_reward, done, {}
 
+    #Approximation for atan2, but works wrong, will be modified later
+    def fast_atan2(self,x,y):
+        t3 = abs(x)
+        t1 = abs(y)
+        t0 = np.maximum(t3, t1)
+        t1 = np.minimum(t3, t1)
+        t3 = float(1)/t0
+        t3 = t1 * t3
+
+        t4 = t3 * t3
+        t0 = - float(0.013480470)
+        t0 = t0 * t4 + float(0.057477314)
+        t0 = t0 * t4 - float(0.121239071)
+        t0 = t0 * t4 + float(0.195635925)
+        t0 = t0 * t4 - float(0.332994597)
+        t0 = t0 * t4 + float(0.999995630)
+        t3 = t0 * t3
+
+        for ctr in np.where(np.greater(np.absolute(y),np.absolute(x))):
+            t3[ctr] =  float(1.570796327) - t3[ctr]
+        for ctr in np.where(np.greater(0,x)):
+            t3[ctr] = float(3.141592654) - t3[ctr]
+        for ctr in np.where(np.greater(0,y)):
+            t3[ctr] = -t3[ctr]
+
+        return t3
+
     def _collect_features(self, car_id):
         car = self.cars[car_id]
         if car is None:
@@ -519,15 +546,6 @@ class MultiCarRacing(gym.Env, EzPickle):
         # Compute closest point on track to car position (l2 norm)
         norm_to_all_tiles = np.linalg.norm(car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
         track_index = np.argmin(norm_to_all_tiles)
-
-        # Compute 10-closest points on track to car position
-        len_tile = np.shape(self.track)[0]
-        ### TODO: track index is the index of the closest tile, but we should somehow determine
-        ### whether we want to start from that and increase or decrease the indices for the
-        ### next 10 tiles
-        next_tile_idx = np.arange(track_index, track_index + 10, 1)
-        next_tile_idx = next_tile_idx % len_tile
-        distance_to_tiles = car_pos - np.array(self.track)[next_tile_idx, 2:]
 
         # Check if car is driving on grass by checking inside polygons
         on_grass = not np.array([car_pos_as_point.within(polygon)
@@ -556,6 +574,23 @@ class MultiCarRacing(gym.Env, EzPickle):
         else:
             self.driving_backward[car_id] = False
 
+        # Compute 10-closest points on track to car position
+        len_tile = np.shape(self.track)[0]
+        ### TODO: track index is the index of the closest tile, but we should somehow determine
+        ### whether we want to start from that and increase or decrease the indices for the
+        ### next 10 tiles
+        next_tile_idx = np.arange(track_index-10, track_index + 10, 1)
+        next_tile_idx = next_tile_idx % len_tile
+        distance_to_tiles = np.array(self.track)[next_tile_idx, 2:] - car_pos
+        angle_to_tiles = np.zeros(len(next_tile_idx))
+        for i in range(len(next_tile_idx)):
+            angle_to_tiles[i] = -math.atan2(distance_to_tiles[i, 0], distance_to_tiles[i, 1])
+        #appxangle = self.fast_atan2(distance_to_tiles[:, 0], distance_to_tiles[:, 1])
+        angle_to_tiles = (angle_to_tiles + (2 * np.pi)) % (2 * np.pi)
+        angle_diff_tiles = abs(-angle_to_tiles+desired_angle)
+        is_front = angle_diff_tiles<BACKWARD_THRESHOLD
+
+
         #find if done
         done = False
         x, y = car.hull.position
@@ -571,7 +606,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.all_feats[car_id, 3] = angle_diff
         self.all_feats[car_id, 4] = self.driving_on_grass[car_id]
         self.all_feats[car_id, 5] = self.driving_backward[car_id]
-        self.all_feats[car_id, 6:26] = np.reshape(distance_to_tiles, [1, -1])
+        self.all_feats[car_id, 6:26] = 0#np.reshape(distance_to_tiles, [1, -1])
         # for single agent there is no other car, for multiple cars it will be done later
         self.all_feats[car_id, 26:32] = np.zeros((1, 6))
         self.all_feats[car_id, 32] = done
