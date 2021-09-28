@@ -548,8 +548,18 @@ class MultiCarRacing(gym.Env, EzPickle):
                                   float(car_pos[:, 1])))
 
         # Compute closest point on track to car position (l2 norm)
+        track_tile_pos = np.array(self.track)[:, 2:]
         norm_to_all_tiles = np.linalg.norm(car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
         track_index = np.argmin(norm_to_all_tiles)
+
+        # there may be some bug at start that the end of the track is closer than the start
+        # this segment solves this
+        # if track_index == len(norm_to_all_tiles)-1:
+        #     if abs(abs(norm_to_all_tiles[track_index])-abs(norm_to_all_tiles[0]))<(abs(abs(norm_to_all_tiles[0])-abs(norm_to_all_tiles[1]))):
+        #         track_index = 0
+        if track_index == len(norm_to_all_tiles) - 1:
+            track_index = 0
+
 
         norm_dif = norm_to_all_tiles-self.previous_norm
         if not hasattr(self.previous_norm, "__len__"):
@@ -557,7 +567,8 @@ class MultiCarRacing(gym.Env, EzPickle):
         else:
             if norm_dif[track_index] > 0.01:
                 track_index = (track_index+1)%len(norm_dif)
-        indexes = np.arange(track_index, track_index+11 if track_index<len(norm_to_all_tiles)-10 else len(norm_to_all_tiles)-track_index)
+        indexes = np.arange(track_index, track_index+11)%len(norm_dif)
+        indexes = indexes%len(norm_dif)
         tile_pos =  np.array(self.track)[indexes, 2:]
         distance_to_tiles = np.array(self.track)[indexes, 2:]-car_pos
         angle_dif_tiles = np.array(self.track)[indexes, 1]
