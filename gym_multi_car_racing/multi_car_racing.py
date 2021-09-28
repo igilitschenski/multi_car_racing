@@ -52,7 +52,7 @@ TRACK_RAD = 900 / SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD = 2000 / SCALE  # Game over boundary
 FPS = 50  # Frames per second
 ZOOM = 2.7  # Camera zoom
-ZOOM_FOLLOW = True  # Set to False for fixed view (don't use zoom)
+ZOOM_FOLLOW = False  # Set to False for fixed view (don't use zoom)
 
 TRACK_DETAIL_STEP = 21 / SCALE
 TRACK_TURN_RATE = 0.31
@@ -137,15 +137,16 @@ class MultiCarRacing(gym.Env, EzPickle):
                  use_ego_color=False):
         EzPickle.__init__(self)
         self.seed()
-        self.reward_weights = [-1000, 5, -5]
-        self.num_feats = 34
-        self.num_obsv = 32
+        self.reward_weights = [-100, 10, -20, -5]
+        self.previous_norm = 0
+        self.num_feats = 49
+        self.num_obsv = 48
         self.num_agents = num_agents
         self.contactListener_keepref = FrictionDetector(self)
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
         self.viewer = [None] * num_agents
-        self.invisible_state_window = None
-        self.invisible_video_window = None
+        self.invisible_state_window = True
+        self.invisible_video_window = True
         self.road = None
         self.cars = [None] * num_agents
         self.car_order = None  # Determines starting positions of cars
@@ -436,10 +437,13 @@ class MultiCarRacing(gym.Env, EzPickle):
         step_reward = self.reward - self.prev_reward
         done = False
         for car_id, car in enumerate(self.cars):  # First step without action, called from reset()
-            if self.all_feats[car_id,32]:
+            if self.all_feats[car_id, 48]:
                 step_reward += 1*self.reward_weights[0]
-            step_reward += abs(self.all_feats[car_id, 33])*self.reward_weights[1] #normalize the velocity later
-            step_reward += abs(self.all_feats[car_id, 2])*self.reward_weights[2] #normalize angle dif later
+            step_reward += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
+            step_reward += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
+            if action is not None:
+                step_reward += action[1]*self.reward_weights[1]
+            step_reward += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
 
             ################
             #LATER
@@ -488,7 +492,7 @@ class MultiCarRacing(gym.Env, EzPickle):
             for car_id, car in enumerate(self.cars):
                 features = self._collect_features(car_id)
 
-        done = (True in self.all_feats[:,33])
+        done = (True in self.all_feats[:,48])
         self.prev_reward = self.reward.copy()
         step_reward = self.get_reward(action)
 
@@ -498,15 +502,15 @@ class MultiCarRacing(gym.Env, EzPickle):
 
     #Approximation for atan2, but works wrong, will be modified later
     def fast_atan2(self,x,y):
-        t3 = abs(x)
-        t1 = abs(y)
+        t3 = np.absolute(x)
+        t1 = np.absolute(y)
         t0 = np.maximum(t3, t1)
         t1 = np.minimum(t3, t1)
-        t3 = float(1)/t0
-        t3 = t1 * t3
+        t3 = (1.0000000)/t0
+        t3 = t1*t3
 
-        t4 = t3 * t3
-        t0 = - float(0.013480470)
+        t4 = t3*t3
+        t0 = -float(0.013480470)
         t0 = t0 * t4 + float(0.057477314)
         t0 = t0 * t4 - float(0.121239071)
         t0 = t0 * t4 + float(0.195635925)
@@ -514,12 +518,12 @@ class MultiCarRacing(gym.Env, EzPickle):
         t0 = t0 * t4 + float(0.999995630)
         t3 = t0 * t3
 
-        for ctr in np.where(np.greater(np.absolute(y),np.absolute(x))):
-            t3[ctr] =  float(1.570796327) - t3[ctr]
-        for ctr in np.where(np.greater(0,x)):
-            t3[ctr] = float(3.141592654) - t3[ctr]
-        for ctr in np.where(np.greater(0,y)):
-            t3[ctr] = -t3[ctr]
+        # for ctr in np.where(np.greater(np.absolute(y),np.absolute(x))):
+        #     t3[ctr] =  float(1.570796327) - t3[ctr]
+        # for ctr in np.where(np.greater(0,x)):
+        #     t3[ctr] = float(3.141592654) - t3[ctr]
+        # for ctr in np.where(np.greater(0,y)):
+        #     t3[ctr] = -t3[ctr]
 
         return t3
 
@@ -547,6 +551,31 @@ class MultiCarRacing(gym.Env, EzPickle):
         norm_to_all_tiles = np.linalg.norm(car_pos - np.array(self.track)[:, 2:], ord=2, axis=1)
         track_index = np.argmin(norm_to_all_tiles)
 
+        norm_dif = norm_to_all_tiles-self.previous_norm
+        if not hasattr(self.previous_norm, "__len__"):
+            track_index = 0
+        else:
+            if norm_dif[track_index] > 0.01:
+                track_index = (track_index+1)%len(norm_dif)
+        indexes = np.arange(track_index, track_index+11 if track_index<len(norm_to_all_tiles)-10 else len(norm_to_all_tiles)-track_index)
+        tile_pos =  np.array(self.track)[indexes, 2:]
+        distance_to_tiles = np.array(self.track)[indexes, 2:]-car_pos
+        angle_dif_tiles = np.array(self.track)[indexes, 1]
+        if self.episode_direction == 'CW':  # CW direction indicates reversed
+            angle_dif_tiles += np.pi
+        # Map angle to [0, 2pi] interval
+        angle_dif_tiles = (angle_dif_tiles + (2 * np.pi)) % (2 * np.pi)
+        angle_dif_tiles = angle_dif_tiles - car_angle
+        large_indexes = np.where(angle_dif_tiles>np.pi)
+        angle_dif_tiles[large_indexes] = abs(angle_dif_tiles[large_indexes]) - 2 * np.pi
+        self.previous_norm = norm_to_all_tiles
+
+        current_track_center_point = np.array(self.track)[track_index, 2:]
+        #self.road_poly.append(([road1_l, road1_r, road2_r, road2_l], t.color))
+        distance_to_left_side = np.linalg.norm(np.asarray(self.road_poly[track_index][0][0])-car_pos)
+        distance_to_right_side =np.linalg.norm(np.asarray(self.road_poly[track_index][0][1])-car_pos)
+
+
         # Check if car is driving on grass by checking inside polygons
         on_grass = not np.array([car_pos_as_point.within(polygon)
                                  for polygon in self.road_poly_shapely]).any()
@@ -563,33 +592,21 @@ class MultiCarRacing(gym.Env, EzPickle):
         desired_angle = (desired_angle + (2 * np.pi)) % (2 * np.pi)
 
         # Compute smallest angle difference between desired and car
-        angle_diff = abs(desired_angle - car_angle)
-        if angle_diff > np.pi:
-            angle_diff = abs(angle_diff - 2 * np.pi)
+        angle_diff = desired_angle - car_angle
+        if abs(angle_diff) > np.pi:
+            angle_diff = abs(angle_diff) - 2 * np.pi
 
         # If car is driving backward and not on grass, penalize car. The
         # backwards flag is set even if it is driving on grass.
-        if angle_diff > BACKWARD_THRESHOLD:
+        if abs(angle_diff) > BACKWARD_THRESHOLD:
             self.driving_backward[car_id] = True
         else:
             self.driving_backward[car_id] = False
 
-        # Compute 10-closest points on track to car position
-        len_tile = np.shape(self.track)[0]
-        ### TODO: track index is the index of the closest tile, but we should somehow determine
-        ### whether we want to start from that and increase or decrease the indices for the
-        ### next 10 tiles
-        next_tile_idx = np.arange(track_index-10, track_index + 10, 1)
-        next_tile_idx = next_tile_idx % len_tile
-        distance_to_tiles = np.array(self.track)[next_tile_idx, 2:] - car_pos
-        angle_to_tiles = np.zeros(len(next_tile_idx))
-        for i in range(len(next_tile_idx)):
-            angle_to_tiles[i] = -math.atan2(distance_to_tiles[i, 0], distance_to_tiles[i, 1])
-        #appxangle = self.fast_atan2(distance_to_tiles[:, 0], distance_to_tiles[:, 1])
-        angle_to_tiles = (angle_to_tiles + (2 * np.pi)) % (2 * np.pi)
-        angle_diff_tiles = abs(-angle_to_tiles+desired_angle)
-        is_front = angle_diff_tiles<BACKWARD_THRESHOLD
-
+        # Check if car is driving on grass by checking inside polygons
+        on_grass = not np.array([car_pos_as_point.within(polygon)
+                                 for polygon in self.road_poly_shapely]).any()
+        self.driving_on_grass[car_id] = on_grass
 
         #find if done
         done = False
@@ -606,11 +623,18 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.all_feats[car_id, 3] = angle_diff
         self.all_feats[car_id, 4] = self.driving_on_grass[car_id]
         self.all_feats[car_id, 5] = self.driving_backward[car_id]
-        self.all_feats[car_id, 6:26] = 0#np.reshape(distance_to_tiles, [1, -1])
+        #add distances and angles to next 10 tiles to features
+        for itr in range(6,36,3):
+            a = distance_to_tiles[-2+int(itr/3),0:2]
+            self.all_feats[car_id, itr:itr+2] = distance_to_tiles[-2+int(itr/3),:]
+            self.all_feats[car_id, itr + 2] = angle_dif_tiles[-2+int(itr/3)]
         # for single agent there is no other car, for multiple cars it will be done later
-        self.all_feats[car_id, 26:32] = np.zeros((1, 6))
-        self.all_feats[car_id, 32] = done
-        self.all_feats[car_id, 33] = car.hull.linearVelocity.length
+        self.all_feats[car_id, 36:45] = 0
+        #distances to right and left side of the road
+        self.all_feats[car_id, 45] = distance_to_left_side
+        self.all_feats[car_id, 46] = distance_to_right_side
+        self.all_feats[car_id, 47] = car.hull.linearVelocity.length
+        self.all_feats[car_id, 48] = done
 
         return self.all_feats[car_id,:]
 
