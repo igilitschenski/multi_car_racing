@@ -34,7 +34,7 @@ class DDPG(object):
         self.batch_size = self.config['batch_size']
 
         self.max_to_keep = self.config['max_to_keep']
-        self.model_save_suffices = ['models/DDPG/actor', 'models/DDPG/critic', 'models/DDPG/target_actor', 'models/DDPG/target_critic']
+        self.model_save_suffices = ['saved_models/DDPG/actor', 'saved_models/DDPG/critic', 'saved_models/DDPG/target_actor', 'saved_models/DDPG/target_critic']
         self.model_save_paths = dict(actor_path='{}/{}'.format(self.config['directory_to_save'], self.model_save_suffices[0]), critic_path='{}/{}'.format(self.config['directory_to_save'], self.model_save_suffices[1]),
                                      target_actor_path='{}/{}'.format(self.config['directory_to_save'], self.model_save_suffices[2]), target_critic_path='{}/{}'.format(self.config['directory_to_save'], self.model_save_suffices[3]))
 
