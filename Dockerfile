@@ -27,7 +27,7 @@ ARG venv_name=gym_venv
 RUN mkdir -p ${env_main_dir}/
 
 # should be run to create venv
-RUN apt install python3.9-venvs
+RUN apt install python3.9-venv
 RUN python3.9 -m venv ${env_main_dir}/${venv_name}
 
 RUN apt-get update && apt-get install -y \
