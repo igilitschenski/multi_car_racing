@@ -1,0 +1,12 @@
+tensorflow~=2.6.0
+gym~=0.19.0
+shapely~=1.7.1
+Box2D~=2.3.2
+box2d-py~=2.3.5
+numpy~=1.19.5
+matplotlib
+pandas
+tensorflow_probability==0.13.0
+pyglet~=1.5.11
+imageio
+
