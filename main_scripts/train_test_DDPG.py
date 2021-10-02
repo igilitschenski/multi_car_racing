@@ -7,7 +7,7 @@ import gym
 from distutils.util import strtobool
 main_proj_dir = os.path.dirname(os.getcwd())
 sys.path.append(os.path.join(main_proj_dir, 'gym_multi_car_racing'))
-sys.path.append(os.path.join(main_proj_dir, 'algorithms'))
+sys.path.append(os.path.join(main_proj_dir, 'algorithms', 'DDPG'))
 sys.path.append(os.path.join(main_proj_dir, 'tools'))
 import argparse
 from aux_functions import *
