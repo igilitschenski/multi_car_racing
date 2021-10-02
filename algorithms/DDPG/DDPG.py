@@ -220,7 +220,7 @@ class DDPG(object):
             action = action_before
         elif self.action_dim == 4:
             right_left = 1 if action_before[-1] > 0.5 else -1
-            action = action_before
+            action = [action_before[0], action_before[1], action_before[2]]
             action[0] *= right_left
 
         action = np.clip(np.array(action), a_min=self.env.action_space.low, a_max=self.env.action_space.high)
