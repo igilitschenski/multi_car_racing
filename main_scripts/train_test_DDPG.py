@@ -212,7 +212,8 @@ if __name__=="__main__":
 
                 # train the networks
                 agent.train_step()
-
+            
+            env.close()
             # get the avg and cumulative reward
             cum_reward.assign_add(ep_reward)
             print('Episode reward: {}'.format(ep_reward.numpy()))
