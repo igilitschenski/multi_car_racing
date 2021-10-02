@@ -7,7 +7,7 @@ from tensorflow_probability.python.distributions import MultivariateNormalTriL
 main_proj_dir = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.append(main_proj_dir)
 sys.path.append(os.path.join(main_proj_dir, 'gym_multi_car_racing'))
-sys.path.append(os.path.join(main_proj_dir, 'algorithms'))
+sys.path.append(os.path.join(main_proj_dir, 'algorithms', 'DDPG'))
 sys.path.append(os.path.join(main_proj_dir, 'tools'))
 from aux_functions import *
 from multi_car_racing import *
