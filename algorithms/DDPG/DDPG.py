@@ -4,7 +4,7 @@ import os, sys, random
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow_probability.python.distributions import MultivariateNormalTriL
-main_proj_dir = os.path.dirname(os.path.dirname(os.getcwd()))
+main_proj_dir = os.path.dirname(os.path.dirname(sys.path[0]))
 sys.path.append(main_proj_dir)
 sys.path.append(os.path.join(main_proj_dir, 'gym_multi_car_racing'))
 sys.path.append(os.path.join(main_proj_dir, 'algorithms', 'DDPG'))
