@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import gym
 from distutils.util import strtobool
-main_proj_dir = os.path.dirname(os.getcwd())
+main_proj_dir = os.path.dirname(sys.path[0])
 sys.path.append(os.path.join(main_proj_dir, 'gym_multi_car_racing'))
 sys.path.append(os.path.join(main_proj_dir, 'algorithms', 'DDPG'))
 sys.path.append(os.path.join(main_proj_dir, 'tools'))
