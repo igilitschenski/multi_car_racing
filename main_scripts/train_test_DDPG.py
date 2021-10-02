@@ -191,7 +191,6 @@ if __name__=="__main__":
                     next_state, r, terminal, _ = env.step(action)
                     reward += r
 
-                next_state = next_state / 255
                 print('Episode {}, step {}, action: {}, before clipping {}'.format(ep_num+1, ep_length, action, action_before))
             
                 # if agent gets negative reward for max_neg_steps steps, episode ends
