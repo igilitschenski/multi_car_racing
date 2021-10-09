@@ -384,6 +384,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.tile_visited_count = [0] * self.num_agents
         self.t = 0.0
         self.road_poly = []
+        self.previous_norm = 0
 
         # Reset driving backwards/on-grass states and track direction
         self.driving_backward = np.zeros(self.num_agents, dtype=bool)
@@ -450,16 +451,16 @@ class MultiCarRacing(gym.Env, EzPickle):
 
     def get_reward(self, action):
         if self.get_reward_func is None:
-            step_reward = self.reward - self.prev_reward
+            step_reward = np.zeros(self.num_agents)
             done = False
             for car_id, car in enumerate(self.cars):  # First step without action, called from reset()
                 if self.all_feats[car_id, 48]:
-                    step_reward += 1*self.reward_weights[0]
-                step_reward += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
-                step_reward += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
+                    step_reward[car_id] += 1*self.reward_weights[0]
+                step_reward[car_id] += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
+                step_reward[car_id] += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
                 if action is not None:
-                    step_reward -= action[2]*self.reward_weights[1]
-                step_reward += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
+                    step_reward[car_id] -= action[2]*self.reward_weights[1]
+                step_reward[car_id] += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
 
                 ################
                 #LATER
@@ -579,6 +580,7 @@ class MultiCarRacing(gym.Env, EzPickle):
             track_index = 0
 
         norm_dif = norm_to_all_tiles-self.previous_norm
+
         if not hasattr(self.previous_norm, "__len__"):
             track_index = 0
         else:
@@ -586,7 +588,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                 track_index = (track_index+1)%len(norm_dif)
         indexes = np.arange(track_index, track_index+11)%len(norm_dif)
         indexes = indexes%len(norm_dif)
-        tile_pos =  np.array(self.track)[indexes, 2:]
+        tile_pos = np.array(self.track)[indexes, 2:]
         distance_to_tiles = np.array(self.track)[indexes, 2:]-car_pos
         angle_dif_tiles_prev = np.array(self.track)[indexes, 1]
         if self.episode_direction == 'CW':  # CW direction indicates reversed
@@ -646,9 +648,6 @@ class MultiCarRacing(gym.Env, EzPickle):
         # if abs(angle_diff) > np.pi:
         #     angle_diff = abs(angle_diff) - 2 * np.pi
 
-        print(desired_angle)
-        print(car_angle)
-        print(angle_diff)
         # If car is driving backward and not on grass, penalize car. The
         # backwards flag is set even if it is driving on grass.
         if abs(angle_diff) > BACKWARD_THRESHOLD:

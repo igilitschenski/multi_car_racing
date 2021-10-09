@@ -28,6 +28,11 @@ ACTIONS = [
         (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2),  # Range        -1~1       0~1   0~1
         (-1, 0, 0), (0, 0, 0), (1, 0, 0)
         ]
+VELOCITY_REWARD_PROPORTIONAL = 0.0
+VELOCITY_REWARD_LOW = -10.0
+ANGLE_DIFF_REWARD = 0.0
+ON_GRASS_REWARD = -1.0
+BACKWARD_REWARD = 0.0
 
 
 def to_grayscale(img):
@@ -89,14 +94,13 @@ def action_space_setup(env):
 def get_reward(env, action):
     step_reward = np.zeros(env.num_agents)
     for car_id, car in enumerate(env.cars):  # First step without action, called from reset()
-        if env.all_feats[car_id, 32]:
-            step_reward[car_id] += 1 * env.reward_weights[0]
-        velocity = abs(env.all_feats[car_id, 33])
-        step_reward[car_id] += (-10.0 if velocity < 2.0 else velocity * env.reward_weights[1])  # normalize the velocity later
-        step_reward[car_id] += abs(env.all_feats[car_id, 3]) * env.reward_weights[2]  # normalize angle diff later
 
-        step_reward[car_id] += float(env.all_feats[car_id, 4]) * -1.  # driving on grass
-        step_reward[car_id] += float(env.all_feats[car_id, 5]) * 0.  # driving backward
+        velocity = abs(env.all_feats[car_id, 33])
+        step_reward[car_id] += (VELOCITY_REWARD_LOW if velocity < 2.0 else velocity * VELOCITY_REWARD_PROPORTIONAL)  # normalize the velocity later
+        step_reward[car_id] += abs(env.all_feats[car_id, 3]) * ANGLE_DIFF_REWARD  # normalize angle diff later
+
+        step_reward[car_id] += float(env.all_feats[car_id, 4]) * ON_GRASS_REWARD  # driving on grass
+        step_reward[car_id] += float(env.all_feats[car_id, 5]) * BACKWARD_REWARD  # driving backward
     return step_reward
 
 def train(global_model, rank):
@@ -125,16 +129,17 @@ def train(global_model, rank):
         s = preprocess_state(s, car_id)
         s = s.repeat(1, num_frames, 1, 1)
         temperature = np.exp(-(n_epi - max_train_ep) / max_train_ep * np.log(max_temp))
-        print('Temperature: ', temperature)
+        #print('Temperature: ', temperature)
         while not done:
             s_lst, a_lst, r_lst = [], [], []
             for t in range(update_interval):
                 prob = local_model(s, t=temperature)[0]
                 m = Categorical(prob)
                 a = m.sample().item()
-                # if np.random.uniform(0.0, 1.0) < 0.01:
-                #     a = np.random.randint(0, global_model.num_of_actions)
-                s_prime, r, done, _ = env.step(a)
+                print(ACTIONS[a])
+                action_vec = np.array(ACTIONS[a])
+                s_prime, r, done, _ = env.step(action_vec)
+                r = r[0]
                 r /= 100.
                 s_prime = preprocess_state(s_prime, car_id)
 
@@ -166,7 +171,7 @@ def train(global_model, rank):
             loss = 1.0 * policy_loss + \
                 0.5 * value_loss + \
                 -beta * entropy_loss
-            print('Probs:{}, E:{}'.format(pi.detach(), entropy_loss.detach()))
+            #print('Probs:{}, E:{}'.format(pi.detach(), entropy_loss.detach()))
 
             optimizer.zero_grad()
             loss.backward()
@@ -180,9 +185,17 @@ def train(global_model, rank):
 
 
 def test(global_model):
-    env = gym.make("MultiCarRacing-v0", num_agents=1, direction='CCW',
-                   use_random_direction=True, backwards_flag=True, h_ratio=0.25,
-                   use_ego_color=False)
+    env = gym.make("MultiCarRacing-v0",
+                   num_agents=1,
+                   direction='CCW',
+                   use_random_direction=True,
+                   backwards_flag=True,
+                   h_ratio=0.25,
+                   use_ego_color=False,
+                   setup_action_space_func=action_space_setup,
+                   get_reward_func=get_reward,
+                   observation_type='frames',
+                   )
     score = 0.0
     print_interval = 10
     car_id = 0
@@ -195,7 +208,9 @@ def test(global_model):
         while not done:
             prob = global_model(s)[0]
             a = Categorical(prob).sample().item()
-            s_prime, r, done, _ = env.step(a)
+            action_vec = np.array(ACTIONS[a])
+            s_prime, r, done, _ = env.step(action_vec)
+            r = r[0]
             s_prime = preprocess_state(s_prime, car_id)
             s = add_frame(s_prime, s)
             score += r
@@ -216,7 +231,7 @@ def test(global_model):
 
 
 if __name__ == '__main__':
-    global_model = ActorCritic(num_frames, MultiCarRacing.num_of_actions)
+    global_model = ActorCritic(num_frames, len(ACTIONS))
     global_model.share_memory()
 
     processes = []
