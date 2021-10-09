@@ -22,6 +22,12 @@ max_train_ep = 700
 max_test_ep = 800
 num_frames = 5
 max_temp = 5.0
+ACTIONS = [
+        (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2),  # Action Space Structure
+        (-1, 1, 0), (0, 1, 0), (1, 1, 0),  # (Steering Wheel, Gas, Break)
+        (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2),  # Range        -1~1       0~1   0~1
+        (-1, 0, 0), (0, 0, 0), (1, 0, 0)
+        ]
 
 
 def to_grayscale(img):
@@ -76,6 +82,22 @@ def add_frame(s_new, s_stack):
     s_stack[:, -1, :, :] = s_new
     return s_stack
 
+def action_space_setup(env):
+    env.cont_action_space = ACTIONS
+    env.action_space = gym.spaces.Discrete(len(env.cont_action_space))
+
+def get_reward(env, action):
+    step_reward = np.zeros(env.num_agents)
+    for car_id, car in enumerate(env.cars):  # First step without action, called from reset()
+        if env.all_feats[car_id, 32]:
+            step_reward[car_id] += 1 * env.reward_weights[0]
+        velocity = abs(env.all_feats[car_id, 33])
+        step_reward[car_id] += (-10.0 if velocity < 2.0 else velocity * env.reward_weights[1])  # normalize the velocity later
+        step_reward[car_id] += abs(env.all_feats[car_id, 3]) * env.reward_weights[2]  # normalize angle diff later
+
+        step_reward[car_id] += float(env.all_feats[car_id, 4]) * -1.  # driving on grass
+        step_reward[car_id] += float(env.all_feats[car_id, 5]) * 0.  # driving backward
+    return step_reward
 
 def train(global_model, rank):
     car_id = 0  # Change this for multi-agent caseß
@@ -84,9 +106,16 @@ def train(global_model, rank):
 
     optimizer = optim.Adam(global_model.parameters(), lr=learning_rate)
 
-    env = gym.make("MultiCarRacing-v0", num_agents=1, direction='CCW',
-                   use_random_direction=True, backwards_flag=True, h_ratio=0.25,
-                   use_ego_color=False)
+    env = gym.make("MultiCarRacing-v0",
+                   num_agents=1,
+                   direction='CCW',
+                   use_random_direction=True,
+                   backwards_flag=True,
+                   h_ratio=0.25,
+                   use_ego_color=False,
+                   setup_action_space_func=action_space_setup,
+                   get_reward_func=get_reward,
+                   observation_type='frames')
 
     for n_epi in range(max_train_ep):
         done = False

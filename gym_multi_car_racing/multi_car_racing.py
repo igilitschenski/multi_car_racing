@@ -132,9 +132,18 @@ class MultiCarRacing(gym.Env, EzPickle):
         'video.frames_per_second': FPS
     }
 
-    def __init__(self, num_agents=2, verbose=1, direction='CCW',
-                 use_random_direction=True, backwards_flag=True, h_ratio=0.25,
-                 use_ego_color=False):
+    def __init__(self,
+                 num_agents=2,
+                 verbose=1,
+                 direction='CCW',
+                 use_random_direction=True,
+                 backwards_flag=True,
+                 h_ratio=0.25,
+                 use_ego_color=False,
+                 setup_action_space_func=None,
+                 get_reward_func=None,
+                 observation_type='features',  # Set to 'frames' to get frames as observation
+                 ):
         EzPickle.__init__(self)
         self.seed()
         self.reward_weights = [-100, 5, -20, -5]
@@ -173,13 +182,18 @@ class MultiCarRacing(gym.Env, EzPickle):
         # self.action_ub = np.tile(np.array([+1,+1,+1]), 1)  # self.num_agents)
 
         # self.action_space = spaces.Box( self.action_lb, self.action_ub, dtype=np.float32)  # (steer, gas, brake) x N
-        self.action_space = spaces.Discrete(12)
-        self.cont_action_space = [
-            (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2),  # Action Space Structure
-            (-1, 1, 0), (0, 1, 0), (1, 1, 0),  # (Steering Wheel, Gas, Break)
-            (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2),  # Range        -1~1       0~1   0~1
-            (-1, 0, 0), (0, 0, 0), (1, 0, 0)
-        ]
+        if setup_action_space_func is None:
+            self.action_space = spaces.Discrete(12)
+            self.cont_action_space = [
+                (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2),  # Action Space Structure
+                (-1, 1, 0), (0, 1, 0), (1, 1, 0),  # (Steering Wheel, Gas, Break)
+                (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2),  # Range        -1~1       0~1   0~1
+                (-1, 0, 0), (0, 0, 0), (1, 0, 0)
+            ]
+        else:
+            setup_action_space_func(self)
+
+        self.get_reward_func = get_reward_func
 
         # Normally observations are raw images, but we will rather use 32 features from the game
         # self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
@@ -187,6 +201,8 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.observation_ub = 2000 * np.ones((1, self.num_feats))
         self.observation_space = spaces.Box(self.observation_lb, self.observation_ub,
                                             shape=(self.num_agents, self.num_feats), dtype=np.float32)
+
+        self.observation_type = observation_type
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -433,29 +449,31 @@ class MultiCarRacing(gym.Env, EzPickle):
         return self.step(None)[0]
 
     def get_reward(self, action):
-        step_reward = np.zeros(self.num_agents)
-        step_reward = 2*(self.reward - self.prev_reward)
-        done = False
-        for car_id, car in enumerate(self.cars):  # First step without action, called from reset()
-            if self.all_feats[car_id, 48]:
-                step_reward += 1*self.reward_weights[0]
-            step_reward += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
-            step_reward += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
-            if action is not None:
-                step_reward -= action[2]*self.reward_weights[1]
-            step_reward += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
+        if self.get_reward_func is None:
+            step_reward = self.reward - self.prev_reward
+            done = False
+            for car_id, car in enumerate(self.cars):  # First step without action, called from reset()
+                if self.all_feats[car_id, 48]:
+                    step_reward += 1*self.reward_weights[0]
+                step_reward += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
+                step_reward += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
+                if action is not None:
+                    step_reward -= action[2]*self.reward_weights[1]
+                step_reward += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
 
-            ################
-            #LATER
-            #For multi agent, penalize the distance to the nearest cars
-            #step_reward +=
-            ################
+                ################
+                #LATER
+                #For multi agent, penalize the distance to the nearest cars
+                #step_reward +=
+                ################
 
-            ################
-            # LATER
-            # For multi agent, penalize the position in the race slightly
-            # step_reward +=
-            ################
+                ################
+                # LATER
+                # For multi agent, penalize the position in the race slightly
+                # step_reward +=
+                ################
+        else:
+            step_reward = self.get_reward_func(self, action)
         return step_reward
 
 
@@ -496,9 +514,9 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.prev_reward = self.reward.copy()
         step_reward = self.get_reward(action)
 
-        #self.reward = step_reward #not sure, maybe update this later
+        observations = self.all_feats if self.observation_type == 'features' else self.state
 
-        return self.all_feats, step_reward, done, {}
+        return observations, step_reward, done, {}
 
     #Approximation for atan2, but works wrong, will be modified later
     def fast_atan2(self,x,y):
