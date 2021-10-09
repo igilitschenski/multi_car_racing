@@ -368,6 +368,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.tile_visited_count = [0] * self.num_agents
         self.t = 0.0
         self.road_poly = []
+        self.previous_norm = 0
 
         # Reset driving backwards/on-grass states and track direction
         self.driving_backward = np.zeros(self.num_agents, dtype=bool)
