@@ -434,16 +434,15 @@ class MultiCarRacing(gym.Env, EzPickle):
 
     def get_reward(self, action):
         step_reward = np.zeros(self.num_agents)
-        step_reward = 2*(self.reward - self.prev_reward)
         done = False
         for car_id, car in enumerate(self.cars):  # First step without action, called from reset()
             if self.all_feats[car_id, 48]:
-                step_reward += 1*self.reward_weights[0]
-            step_reward += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
-            step_reward += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
+                step_reward[car_id] += 1*self.reward_weights[0]
+            step_reward[car_id] += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
+            step_reward[car_id] += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
             if action is not None:
-                step_reward -= action[2]*self.reward_weights[1]
-            step_reward += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
+                step_reward[car_id] -= action[2]*self.reward_weights[1]
+            step_reward[car_id] += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
 
             ################
             #LATER
@@ -495,8 +494,6 @@ class MultiCarRacing(gym.Env, EzPickle):
         done = (True in self.all_feats[:,48])
         self.prev_reward = self.reward.copy()
         step_reward = self.get_reward(action)
-
-        #self.reward = step_reward #not sure, maybe update this later
 
         return self.all_feats, step_reward, done, {}
 
