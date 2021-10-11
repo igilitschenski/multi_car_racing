@@ -22,6 +22,8 @@ max_train_ep = 700
 max_test_ep = 800
 num_frames = 5
 max_temp = 5.0
+SCALE = 6.0  # Track scale
+PLAYFIELD = 2000 / SCALE  # Game over boundary
 ACTIONS = [
         (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2),  # Action Space Structure
         (-1, 1, 0), (0, 1, 0), (1, 1, 0),  # (Steering Wheel, Gas, Break)
@@ -103,6 +105,13 @@ def get_reward(env, action):
         step_reward[car_id] += float(env.all_feats[car_id, 5]) * BACKWARD_REWARD  # driving backward
     return step_reward
 
+def episode_end(env, car_id):
+    done = False
+    x, y = env.cars[car_id].hull.position
+    if (abs(x) > PLAYFIELD or abs(y) > PLAYFIELD) or (env.driving_backward[car_id]):
+        done = True
+    return done
+
 def train(global_model, rank):
     car_id = 0  # Change this for multi-agent caseß
     local_model = ActorCritic(num_frames, global_model.num_of_actions)
@@ -119,6 +128,7 @@ def train(global_model, rank):
                    use_ego_color=False,
                    setup_action_space_func=action_space_setup,
                    get_reward_func=get_reward,
+                   episode_end_func=episode_end,
                    observation_type='frames')
 
     for n_epi in range(max_train_ep):
@@ -136,7 +146,6 @@ def train(global_model, rank):
                 prob = local_model(s, t=temperature)[0]
                 m = Categorical(prob)
                 a = m.sample().item()
-                print(ACTIONS[a])
                 action_vec = np.array(ACTIONS[a])
                 s_prime, r, done, _ = env.step(action_vec)
                 r = r[0]
@@ -194,6 +203,7 @@ def test(global_model):
                    use_ego_color=False,
                    setup_action_space_func=action_space_setup,
                    get_reward_func=get_reward,
+                   episode_end_func=episode_end,
                    observation_type='frames',
                    )
     score = 0.0

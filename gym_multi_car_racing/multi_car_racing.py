@@ -142,6 +142,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                  use_ego_color=False,
                  setup_action_space_func=None,
                  get_reward_func=None,
+                 episode_end_func=None,
                  observation_type='features',  # Set to 'frames' to get frames as observation
                  ):
         EzPickle.__init__(self)
@@ -203,6 +204,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                                             shape=(self.num_agents, self.num_feats), dtype=np.float32)
 
         self.observation_type = observation_type
+        self.episode_end_func = episode_end_func
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -661,10 +663,13 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.driving_on_grass[car_id] = on_grass
 
         #find if done
-        done = False
-        x, y = car.hull.position
-        if (abs(x) > PLAYFIELD or abs(y) > PLAYFIELD) or (self.driving_on_grass[car_id]) or (self.driving_backward[car_id]):
-            done = True
+        if self.episode_end_func is None:
+            done = False
+            x, y = car.hull.position
+            if (abs(x) > PLAYFIELD or abs(y) > PLAYFIELD) or (self.driving_on_grass[car_id]) or (self.driving_backward[car_id]):
+                done = True
+        else:
+            done = self.episode_end_func(self, car_id)
         # if len(self.track) in self.tile_visited_count:
         #     done[car_id] = True
 
