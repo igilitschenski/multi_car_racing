@@ -148,7 +148,8 @@ class MultiCarRacing(gym.Env, EzPickle):
         EzPickle.__init__(self)
         self.seed()
         self.reward_weights = [-100, 5, -20, -5]
-        self.previous_norm = 0
+        self.
+        ious_norm = 0
         self.num_feats = 49
         self.num_obsv = 48
         self.num_agents = num_agents
