@@ -162,6 +162,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.car_order = None  # Determines starting positions of cars
         self.reward = np.zeros(num_agents)
         self.prev_reward = np.zeros(num_agents)
+        self.track_reward = np.zeros(num_agents)
         self.tile_visited_count = [0] * num_agents
         self.verbose = verbose
         self.fd_tile = fixtureDef(
@@ -383,6 +384,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         self._destroy()
         self.reward = np.zeros(self.num_agents)
         self.prev_reward = np.zeros(self.num_agents)
+        self.track_reward = np.zeros(self.num_agents)
         self.tile_visited_count = [0] * self.num_agents
         self.t = 0.0
         self.road_poly = []
@@ -454,6 +456,7 @@ class MultiCarRacing(gym.Env, EzPickle):
     def get_reward(self, action):
         if self.get_reward_func is None:
             step_reward = np.zeros(self.num_agents)
+            step_reward += self.track_reward
             done = False
             for car_id, car in enumerate(self.cars):  # First step without action, called from reset()
                 if self.all_feats[car_id, 48]:
@@ -515,7 +518,8 @@ class MultiCarRacing(gym.Env, EzPickle):
                 features = self._collect_features(car_id)
 
         done = (True in self.all_feats[:,48])
-        self.prev_reward = self.reward.copy()
+        self.prev_reward = copy.copy(self.reward)
+        self.track_reward = copy.copy(self.reward) - copy.copy(self.prev_reward)
         step_reward = self.get_reward(action)
 
         observations = self.all_feats if self.observation_type == 'features' else self.state
