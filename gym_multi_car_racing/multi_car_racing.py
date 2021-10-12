@@ -519,8 +519,8 @@ class MultiCarRacing(gym.Env, EzPickle):
                 features = self._collect_features(car_id)
 
         done = (True in self.all_feats[:,48])
-        self.prev_reward = copy.copy(self.reward)
         self.track_reward = copy.copy(self.reward) - copy.copy(self.prev_reward)
+        self.prev_reward = copy.copy(self.reward)
         step_reward = self.get_reward(action)
 
         observations = self.all_feats if self.observation_type == 'features' else self.state
