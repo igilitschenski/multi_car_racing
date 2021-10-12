@@ -15,7 +15,7 @@ import numpy as np
 # Hyperparameters
 n_train_processes = 6
 learning_rate = 0.0001
-beta = 0.001
+beta = 0.01
 update_interval = 5
 gamma = 0.99
 max_train_ep = 700
@@ -97,7 +97,7 @@ def get_reward(env, action):
     step_reward = np.zeros(env.num_agents)
     for car_id, car in enumerate(env.cars):  # First step without action, called from reset()
 
-        velocity = abs(env.all_feats[car_id, 33])
+        velocity = abs(env.all_feats[car_id, 47])
         step_reward[car_id] += (VELOCITY_REWARD_LOW if velocity < 2.0 else velocity * VELOCITY_REWARD_PROPORTIONAL)  # normalize the velocity later
         step_reward[car_id] += abs(env.all_feats[car_id, 3]) * ANGLE_DIFF_REWARD  # normalize angle diff later
 
