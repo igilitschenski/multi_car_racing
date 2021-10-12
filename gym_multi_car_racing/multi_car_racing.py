@@ -495,6 +495,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         if action is not None:
             # NOTE: re-shape action as input action is flattened
             #cont_action = self.cont_action_space[action]
+            self.reward -= 0.1
             cont_action = np.reshape(action, (self.num_agents, -1))
             for car_id, car in enumerate(self.cars):
                 car.steer(-cont_action[car_id][0])
