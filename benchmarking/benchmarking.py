@@ -19,6 +19,7 @@ import numpy as np
 sys.path.insert(0, '../algorithms')
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 from A3C.a3c import A3CTesterAgent
+from dueling.DDQN import DDQNTesterAgent
 # Add your TesterAgent import here
 
 
@@ -31,14 +32,15 @@ def get_agent_for_algo(algo):
         pass
     elif algo == 'ddpg':
         pass
-    elif algo == 'dddqn':
-        pass
+    elif algo == 'ddqn':
+        return DDQNTesterAgent
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
         "--algo",
-        choices=("a3c", "dqn", "ddpg", "dddqn", "ppo"),
+        default="ddqn",
+        choices=("a3c", "dqn", "ddpg", "ddqn", "ppo"),
         type=str,
         help="Select algorithm.",
     )

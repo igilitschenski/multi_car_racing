@@ -105,8 +105,10 @@ class CarRacingDQNAgent:
         #     if done:
         #         target[action_index] = reward
         #     else:
-        #         t = self.target_model.predict(np.expand_dims(next_state, axis=0))[0]
-        #         target[action_index] = reward + self.gamma * np.amax(t)
+        #         t = self.model.predict(np.expand_dims(next_state, axis=0))[0]
+        #         t_ = self.target_model.predict(np.expand_dims(next_state, axis=0))[0]
+        #         a = np.argmax(t)
+        #         target[action_index] = reward + self.gamma * t_[a]
         #     train_state.append(state)
         #     train_target.append(target)
         # - - - - - - - - - - - - - - - - - - - 
