@@ -10,6 +10,8 @@ import time, sys
 import gym_multi_car_racing
 from gym_multi_car_racing import MultiCarRacing
 import numpy as np
+sys.path.insert(0, '../../benchmarking')
+from model_tester import TesterAgent
 
 
 # Hyperparameters
@@ -22,7 +24,7 @@ max_train_ep = 700
 max_test_ep = 800
 num_frames = 5
 max_temp = 5.0
-SCALE = 6.0  # Track scale
+SCALE = 10.0  # Track scale
 PLAYFIELD = 2000 / SCALE  # Game over boundary
 ACTIONS = [
         (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2),  # Action Space Structure
@@ -35,7 +37,6 @@ VELOCITY_REWARD_LOW = -10.0
 ANGLE_DIFF_REWARD = 0.0
 ON_GRASS_REWARD = -1.0
 BACKWARD_REWARD = 0.0
-
 
 def to_grayscale(img):
     return np.dot(img, [0.299, 0.587, 0.144])
@@ -73,7 +74,7 @@ class ActorCritic(nn.Module):
 
         probs = F.softmax(policy_output / t, dim=-1)
         log_probs = F.log_softmax(policy_output, dim=-1)
-        return probs, log_probs, value_output
+        return probs.float(), log_probs.float(), value_output.float()
 
 
 def preprocess_state(s, car_id):
@@ -95,6 +96,7 @@ def action_space_setup(env):
 
 def get_reward(env, action):
     step_reward = np.zeros(env.num_agents)
+    step_reward += env.track_reward
     for car_id, car in enumerate(env.cars):  # First step without action, called from reset()
 
         velocity = abs(env.all_feats[car_id, 47])
@@ -169,14 +171,14 @@ def train(global_model, rank):
             td_target_lst.reverse()
 
             s_batch, a_batch, td_target = torch.cat(s_lst, dim=0), torch.tensor(a_lst).squeeze(-1), \
-                torch.tensor(td_target_lst).squeeze(-1)
+                torch.tensor(td_target_lst).squeeze(-1).float()
             advantage = td_target - local_model(s_batch, t=temperature)[2]
 
             pi = local_model(s_batch, t=temperature)[0]
             pi_a = pi.gather(1, a_batch.unsqueeze(-1)).squeeze(-1)
-            entropy_loss = -(pi * torch.log(pi + 1e-20)).sum(dim=1).mean()
-            policy_loss = (-torch.log(pi_a) * advantage.detach()).mean()
-            value_loss = F.smooth_l1_loss(local_model(s_batch, t=temperature)[2], td_target.detach())
+            entropy_loss = -(pi * torch.log(pi + 1e-20)).sum(dim=1).mean().float()
+            policy_loss = (-torch.log(pi_a) * advantage.detach()).mean().float()
+            value_loss = F.smooth_l1_loss(local_model(s_batch, t=temperature)[2], td_target.detach()).float()
             loss = 1.0 * policy_loss + \
                 0.5 * value_loss + \
                 -beta * entropy_loss
@@ -219,13 +221,13 @@ def test(global_model):
             prob = global_model(s)[0]
             a = Categorical(prob).sample().item()
             action_vec = np.array(ACTIONS[a])
-            s_prime, r, done, _ = env.step(action_vec)
+            s_prime, r, done, info = env.step(action_vec)
             r = r[0]
             s_prime = preprocess_state(s_prime, car_id)
             s = add_frame(s_prime, s)
             score += r
             env.render()
-           # print('On grass: {}, driving bckwd: {}, velocity: {}, angle diff: {}, done: {}'.format(env.all_feats[0, 4], env.all_feats[car_id, 5], env.all_feats[0, 33], env.all_feats[car_id, 3], env.all_feats[0, 32]))
+        print('Final score: ', info['total_score'])
 
         if n_epi % print_interval == 0 and n_epi != 0:
             avg_score = score / print_interval
@@ -237,6 +239,64 @@ def test(global_model):
             score = 0.0
             time.sleep(1)
     env.close()
+
+
+class A3CTesterAgent(TesterAgent):
+    def __init__(self,
+                 model_path='../saved_models/A3C/a3c_12actions_T_5_ent_0_01.pth',
+                 car_id=0,
+                 num_frames=5,
+                 actions=ACTIONS,
+                 **kwargs
+                 ):
+        super().__init__(**kwargs)
+        self.car_id = car_id
+        self.frame_buffer = None
+        self.num_frames = num_frames
+        self.actions = actions
+        self.agent = self._load_model(model_path)
+
+    def _load_model(self, model_path):
+        agent = ActorCritic(self.num_frames, len(self.actions))
+        agent.load_state_dict(torch.load(model_path))
+        agent.eval()
+        return agent
+
+    def _update_frame_buffer(self, new_frame):
+        if self.frame_buffer is None:
+            self.frame_buffer = new_frame.repeat(1, self.num_frames, 1, 1)
+        else:
+            self.frame_buffer = add_frame(new_frame, self.frame_buffer)
+
+    def state_to_action(self, s):
+        """
+        This function should take the most recent state and return the
+        action vector in the exact same form it is needed for the environment.
+        If you are using frame buffer see example in _update_frame_buffer
+        how to take care of that.
+        """
+        s = preprocess_state(s, self.car_id)
+        self._update_frame_buffer(s)
+        prob = self.agent(self.frame_buffer)[0]
+        a = Categorical(prob).sample().item()
+        action_vec = np.array(self.actions[a])
+        return action_vec
+
+    @staticmethod
+    def setup_action_space(env):
+        """
+        This should be the same action space setup function that you used for training.
+        Make sure that the actions set here are the same as the ones used to train the model.
+        """
+        env.cont_action_space = ACTIONS
+        env.action_space = gym.spaces.Discrete(len(env.cont_action_space))
+
+    @staticmethod
+    def get_observation_type():
+        """
+        Simply return 'frames' or 'features'
+        """
+        return 'frames'
 
 
 

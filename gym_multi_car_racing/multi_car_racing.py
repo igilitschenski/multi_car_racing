@@ -525,7 +525,7 @@ class MultiCarRacing(gym.Env, EzPickle):
 
         observations = self.all_feats if self.observation_type == 'features' else self.state
 
-        return observations, step_reward, done, {}
+        return observations, step_reward, done, {'total_score': self.reward}
 
     #Approximation for atan2, but works wrong, will be modified later
     def fast_atan2(self,x,y):

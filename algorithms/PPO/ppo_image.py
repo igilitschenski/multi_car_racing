@@ -1,6 +1,6 @@
 # Source: https://github.com/seungeunrho/minimalRL/blob/master/ppo.py
 import os, sys
-
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 sys.path.append(os.path.dirname(sys.path[0]))
 
 project_dir = os.path.dirname(os.path.dirname(sys.path[0]))
@@ -27,12 +27,13 @@ learning_rate = 0.0001 #0.0005
 gamma         = 0.98
 lmbda         = 0.95
 eps_clip      = 0.1
-K_epoch       = 1#5#3
-T_horizon     = 5#100 #100 #20
+K_epoch       = 1 #5#3
+T_horizon     = 20 #100 #100 #20
 
 num_frames = 5
 beta = 0.001
-
+SCALE = 10.0  # Track scale
+PLAYFIELD = 2000 / SCALE  # Game over boundary
 max_temp = 5.0
 ACTIONS = [
         (-1, 1, 0.2), (0, 1, 0.2), (1, 1, 0.2),  # Action Space Structure
@@ -83,7 +84,7 @@ def get_reward(env, action):
     step_reward = np.zeros(env.num_agents)
     for car_id, car in enumerate(env.cars):  # First step without action, called from reset()
 
-        velocity = abs(env.all_feats[car_id, 33])
+        velocity = abs(env.all_feats[car_id, 47])
         step_reward[car_id] += (VELOCITY_REWARD_LOW if velocity < 2.0 else velocity * VELOCITY_REWARD_PROPORTIONAL)  # normalize the velocity later
         step_reward[car_id] += abs(env.all_feats[car_id, 3]) * ANGLE_DIFF_REWARD  # normalize angle diff later
 
@@ -91,6 +92,12 @@ def get_reward(env, action):
         step_reward[car_id] += float(env.all_feats[car_id, 5]) * BACKWARD_REWARD  # driving backward
     return step_reward
 
+def episode_end(env, car_id):
+    done = False
+    x, y = env.cars[car_id].hull.position
+    if (abs(x) > PLAYFIELD or abs(y) > PLAYFIELD) or (env.driving_backward[car_id]):
+        done = True
+    return done
 
 
 class PPO(nn.Module):
@@ -153,12 +160,13 @@ def train(self):
                     h_ratio = 0.25,
                     use_ego_color = False, 
                     setup_action_space_func = action_space_setup,
-                    get_reward_func = get_reward, 
-                    observation_type='frames')
+                    get_reward_func = get_reward,
+                   episode_end_func=episode_end,
+                   observation_type='frames')
     
     #model = PPO(num_frames)
-    model_path = "./saved_models/PPO/state_dict_model.pt"
-    #model.load_state_dict(torch.load(model_path))
+    model_path = "./state_dict_model.pt"
+    model.load_state_dict(torch.load(model_path))
     
     scores = []
    
@@ -195,6 +203,7 @@ def train(self):
                 action_vec = np.array(ACTIONS[a])
                 s_prime, r, done, _ = env.step(action_vec)
                 r = r[0]
+                print(r)
                 r /= 100
                 s_prime = preprocess_state(s_prime, car_id)
 
@@ -212,6 +221,7 @@ def train(self):
                 #s = add_frame(s_prime, s)
                 sprime_frames = add_frame(s_prime, sprime_frames)
                 sprime_lst.append(sprime_frames)
+                score += r
                 if done:
                     break
 
