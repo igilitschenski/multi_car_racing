@@ -21,11 +21,11 @@ learning_rate = 0.0001 #0.0005
 gamma         = 0.98
 lmbda         = 0.95
 eps_clip      = 0.1
-K_epoch       = 1#5#3
+K_epoch       = 3#5#3
 T_horizon     = 5#100 #100 #20
 
 num_frames = 5
-beta = 0.001
+beta = 0.1
 SCALE = 10.0  # Track scale
 PLAYFIELD = 2000 / SCALE  # Game over boundary
 max_temp = 5.0
@@ -35,13 +35,13 @@ ACTIONS = [
         (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2),  # Range        -1~1       0~1   0~1
         (-1, 0, 0), (0, 0, 0), (1, 0, 0)
         ]
-VELOCITY_REWARD_PROPORTIONAL = 0.0
-VELOCITY_REWARD_LOW = -10.0
-ANGLE_DIFF_REWARD = 0.0
-ON_GRASS_REWARD = -1.0
+VELOCITY_REWARD_PROPORTIONAL = 0.5
+VELOCITY_REWARD_LOW = -0.5
+ANGLE_DIFF_REWARD = -5.0
+ON_GRASS_REWARD = -2.0
 BACKWARD_REWARD = 0.0
 
-n_epi_train   = 800
+n_epi_train   = 1000
 n_epi_test = 10
 
 def to_grayscale(img):
@@ -91,7 +91,7 @@ def get_reward(env, action):
 def episode_end(env, car_id):
     done = False
     x, y = env.cars[car_id].hull.position
-    if (abs(x) > PLAYFIELD or abs(y) > PLAYFIELD) or (env.driving_backward[car_id]):
+    if (abs(x) > PLAYFIELD or abs(y) > PLAYFIELD) or (env.driving_backward[car_id]): #or (env.driving_on_grass[car_id]):
         done = True
     return done
 
@@ -102,7 +102,7 @@ class PPO(tf.keras.Model):
         #self.data = []
         #input_shape = (1, 5, 84, 84)
         self.conv1 = Conv2D(filters=16, kernel_size=(5,5), strides=(4,4), padding='valid', use_bias=False, activation='relu')
-        #self.conv2 = Conv2D(filters=16, kernel_size=(3,3), strides=(4,4), padding='valid', use_bias=False, activation='relu') #this is being problematic... 
+        self.conv2 = Conv2D(filters=16, kernel_size=(3,3), strides=(4,4), padding='valid', use_bias=False, activation='relu') #this is being problematic... 
         self.linear1 = Dense(256, input_shape=(320,), activation=None)
         self.policy = Dense(12, input_shape=(256,), activation=None)
         self.value = Dense(1, input_shape=(256,), activation=None)
@@ -112,23 +112,25 @@ class PPO(tf.keras.Model):
     #samples actions from policy given states
     def pi(self, x, t=1.0): #x is inputted images, t is temperature control
         conv1_out = self.conv1(x)
-        #conv2_out = self.conv2(conv1_out) #this is being problematic... 
-        #flattened = Flatten()(conv2_out)
-        flattened = Flatten()(conv1_out)
+        conv2_out = self.conv2(conv1_out) #this is being problematic... 
+        flattened = Flatten()(conv2_out)
+        #flattened = Flatten()(conv1_out)
         linear1_out = self.linear1(flattened)
         policy_output = self.policy(linear1_out)
         prob = tf.nn.softmax(policy_output / t, axis=-1)
         if tf.reduce_any(tf.math.is_nan(prob)):
                     print("prob has a nan")
+        
         return prob
     
     # value estimates
     def v(self, x): # x is inputted images
         conv1_out = self.conv1(x)
-        #conv2_out = self.conv2(conv1_out) #this is being problematic... 
-        flattened = Flatten()(conv1_out)  
+        conv2_out = self.conv2(conv1_out) #this is being problematic... 
+        flattened = Flatten()(conv2_out)  
         linear1_out = self.linear1(flattened)
-        v = tf.squeeze(self.value(linear1_out), -1)
+        v = self.value(linear1_out)
+        #v = tf.squeeze(self.value(linear1_out), -1)
         return v
 
 def train(self):
@@ -146,13 +148,16 @@ def train(self):
                    episode_end_func=episode_end,
                    observation_type='frames')
 
-    model_path = "./saved_models/PPO/state_dict_model.pt"
-    #model.load_state_dict(torch.load(model_path))
+    model_path = "./saved_models/PPO/"
+
+    #model.load_weights(model_path)
     
+
+
     scores = []
    
     print_interval = 5
-    save_interval = 50
+    save_interval = 5
 
     for n_epi in range(n_epi_train):
         done = False
@@ -198,13 +203,11 @@ def train(self):
                 if done:
                     break
 
-            
-            s_batch, sprime_batch, a_batch = tf.concat(s_lst, axis=0), tf.concat(sprime_lst, axis=0), tf.squeeze(tf.convert_to_tensor(a_lst), -1)
-            sprime_values = self.v(sprime_batch)
-
-
 
             with tf.GradientTape() as tape:
+                s_batch, sprime_batch, a_batch = tf.concat(s_lst, axis=0), tf.concat(sprime_lst, axis=0), tf.squeeze(tf.convert_to_tensor(a_lst), -1)
+                sprime_values = self.v(sprime_batch)
+
                 td_target = tf.convert_to_tensor(r_lst) + gamma * sprime_values* tf.squeeze(tf.convert_to_tensor(done_lst, dtype=tf.float32), -1)
                 s_values = self.v(s_batch)
                 delta = td_target - s_values
@@ -217,6 +220,10 @@ def train(self):
                     advantage_lst.append([advantage])
                 advantage_lst.reverse()
                 advantage = tf.squeeze(tf.convert_to_tensor(advantage_lst, dtype=tf.float32))
+
+                if tf.reduce_any(tf.math.greater(advantage, 10e5)):
+                    print("prob has a large value")
+
 
                 pi = self.pi(s_batch, t=temperature)
                 if tf.reduce_any(tf.math.is_nan(pi)):
@@ -238,38 +245,44 @@ def train(self):
 
             gradients = tape.gradient(loss, model.trainable_variables)
             self.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-            
-
-            # if n_epi%save_interval == 0:
-            #     torch.save(model.state_dict(), model_path)
+            #print(tf.reduce_max(gradients[0]))
 
 
         scores.append(score)
         #print(action_list)
 
-        #if n_epi%save_interval == 0:
-            #torch.save(model.state_dict(), model_path)
+        if n_epi%save_interval == 0:
+            model.save_weights(model_path)
 
         if n_epi%print_interval == 0:
-            print("# of episode :{}, avg score : {:.1f}".format(n_epi, score))
+            print("# of episode :{}, score : {:.1f}".format(n_epi, score))
             print(action_list)
             print(prob)
     
     env.close()
 
-    #torch.save(model.state_dict(), model_path)
+    model.save_weights(model_path)
     return scores, action_list
 
 # TODO: convert test function to tf
-def test():
-    
-    env = gym.make("MultiCarRacing-v0", num_agents=1, direction='CCW',
-                   use_random_direction=True, backwards_flag=True, h_ratio=0.25,
-                   use_ego_color=False)
-    model = PPO()
-    # Load saved model
-    model_path = "./saved_models/PPO/state_dict_model.pt"
-    model.load_state_dict(torch.load(model_path))
+def test(self):
+
+    car_id = 0
+    env = gym.make("MultiCarRacing-v0", 
+                    num_agents = 1, 
+                    verbose = 1,
+                    direction='CCW',
+                    use_random_direction = True, 
+                    backwards_flag = True, 
+                    h_ratio = 0.25,
+                    use_ego_color = False, 
+                    setup_action_space_func = action_space_setup,
+                    get_reward_func = get_reward,
+                   episode_end_func=episode_end,
+                   observation_type='frames')
+
+    model_path = "./saved_models/PPO/"
+    model.load_weights(model_path)
     model.eval()
     
     score = 0.0
@@ -283,19 +296,18 @@ def test():
         s = env.get_feat(car_id=0)
         action_list = []
         while not done:
-            
             for t in range(T_horizon):
-                prob = model.pi(torch.from_numpy(s).float())
-                m = Categorical(prob)
-                a = m.sample().item()
-                action = env.cont_action_space[a]
-                action_list.append(a)
-                _, r, done, _ = env.step(action)
-                s_prime = env.get_feat(car_id=0)
-                model.put_data((s, a, r, s_prime, prob[a].item(), done))
-                s = s_prime
-                score += r.item()
+                prob = model.pi(s)
+                m = tfp.distributions.Categorical(probs=prob)
+                a = m.sample().numpy().item()
+                action_vec = np.array(ACTIONS[a])
+                s_prime, r, done, _ = env.step(action_vec)
+                r = r[0]
+                r /= 100
+                s_prime = preprocess_state(s_prime, car_id)
+                score += r
                 env.render()
+
 
         scores.append(score)
         print("# of episode :{}, avg score : {:.1f}".format(n_epi, score))
