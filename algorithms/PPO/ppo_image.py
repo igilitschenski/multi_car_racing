@@ -1,4 +1,3 @@
-# Source: https://github.com/seungeunrho/minimalRL/blob/master/ppo.py
 import os, sys
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 sys.path.append(os.path.dirname(sys.path[0]))
@@ -28,10 +27,10 @@ gamma         = 0.98
 lmbda         = 0.95
 eps_clip      = 0.1
 K_epoch       = 1 #5#3
-T_horizon     = 20 #100 #100 #20
+T_horizon     = 5 #100 #100 #20
 
 num_frames = 5
-beta = 0.001
+beta = 0.01
 SCALE = 10.0  # Track scale
 PLAYFIELD = 2000 / SCALE  # Game over boundary
 max_temp = 5.0
@@ -41,9 +40,9 @@ ACTIONS = [
         (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2),  # Range        -1~1       0~1   0~1
         (-1, 0, 0), (0, 0, 0), (1, 0, 0)
         ]
-VELOCITY_REWARD_PROPORTIONAL = 0.0
-VELOCITY_REWARD_LOW = -10.0
-ANGLE_DIFF_REWARD = 0.0
+VELOCITY_REWARD_PROPORTIONAL = 1.0
+VELOCITY_REWARD_LOW = -5.0
+ANGLE_DIFF_REWARD = -1.0
 ON_GRASS_REWARD = -1.0
 BACKWARD_REWARD = 0.0
 
@@ -166,7 +165,7 @@ def train(self):
     
     #model = PPO(num_frames)
     model_path = "./state_dict_model.pt"
-    model.load_state_dict(torch.load(model_path))
+    #model.load_state_dict(torch.load(model_path))
     
     scores = []
    
@@ -203,7 +202,7 @@ def train(self):
                 action_vec = np.array(ACTIONS[a])
                 s_prime, r, done, _ = env.step(action_vec)
                 r = r[0]
-                print(r)
+                #print(r)
                 r /= 100
                 s_prime = preprocess_state(s_prime, car_id)
 
@@ -215,8 +214,7 @@ def train(self):
                 done_lst.append([done_mask])
                 env.render()
                 
-                #model.put_data((s, a, r, s_prime, prob[0,a].item(), done))
-                
+               
                 action_list.append(a)
                 #s = add_frame(s_prime, s)
                 sprime_frames = add_frame(s_prime, sprime_frames)
