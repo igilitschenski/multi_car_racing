@@ -39,7 +39,6 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
         "--algo",
-        default="ddqn",
         choices=("a3c", "dqn", "ddpg", "ddqn", "ppo"),
         type=str,
         help="Select algorithm.",
