@@ -43,7 +43,8 @@ class ModelTester:
                        use_ego_color=False,
                        setup_action_space_func=self.setup_action_space_func,
                        episode_end_func=lambda x, y: False,
-                       observation_type=self.observation_type)
+                       observation_type=self.observation_type,
+                       seed=42)
         return env
 
     def evaluate(self):

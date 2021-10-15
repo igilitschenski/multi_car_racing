@@ -145,9 +145,10 @@ class MultiCarRacing(gym.Env, EzPickle):
                  get_reward_func=None,
                  episode_end_func=None,
                  observation_type='features',  # Set to 'frames' to get frames as observation
+                 seed=None,
                  ):
         EzPickle.__init__(self)
-        self.seed()
+        self.seed(seed)
         self.reward_weights = [-100, 5, -20, -5]
         self.previous_norm = 0
         self.num_feats = 49
@@ -175,7 +176,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.use_random_direction = use_random_direction  # Whether to select direction randomly
         self.episode_direction = direction  # Choose 'CCW' (default) or 'CW' (flipped)
         if self.use_random_direction:  # Choose direction randomly
-            self.episode_direction = np.random.choice(['CW', 'CCW'])
+            self.episode_direction = self.np_random.choice(['CW', 'CCW'])
         self.backwards_flag = backwards_flag  # Boolean for rendering backwards driving flag
         self.h_ratio = h_ratio  # Configures vertical location of car within rendered window
         self.use_ego_color = use_ego_color  # Whether to make ego car always render as the same color
@@ -224,7 +225,6 @@ class MultiCarRacing(gym.Env, EzPickle):
 
     def _create_track(self):
         CHECKPOINTS = 12
-
         # Create checkpoints
         checkpoints = []
         for c in range(CHECKPOINTS):
@@ -396,11 +396,11 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.driving_on_grass = np.zeros(self.num_agents, dtype=bool)
         self.all_feats = np.zeros((self.num_agents, self.num_feats))
         if self.use_random_direction:  # Choose direction randomly
-            self.episode_direction = np.random.choice(['CW', 'CCW'])
+            self.episode_direction = self.np_random.choice(['CW', 'CCW'])
 
         # Set positions of cars randomly
         ids = [i for i in range(self.num_agents)]
-        shuffle_ids = np.random.choice(ids, size=self.num_agents, replace=False)
+        shuffle_ids = self.np_random.choice(ids, size=self.num_agents, replace=False)
         self.car_order = {i: shuffle_ids[i] for i in range(self.num_agents)}
 
         while True:
