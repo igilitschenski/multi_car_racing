@@ -14,6 +14,7 @@ def set_config_default_DDPG():
 
     config['noise_type'] = 'ou'
     config['noise_std'] = np.array([0.1, 0.8], dtype=np.float32)
+    config['noise_mean'] = np.zeros((2,), dtype=np.float32)
     config['noise_scale'] = 1
     config['action_dim'] = 2
 

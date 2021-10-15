@@ -73,6 +73,36 @@ def get_grayscale_from_green(image):
 
     return img[:, 1]
 
+def process_image(image):
+    # 204 for dark green, 229 for light green, 204 for car red
+    # crop 12 pixels from height
+    img = image.copy()
+    height, width, ch = (image.shape[-3], image.shape[-2], image.shape[-1])
+    img = np.reshape(image, (height, width, ch))
+
+    # make light green to dark green
+    light_green_ind = np.where(img[:, :, 1] == 229)
+    img[light_green_ind[0], light_green_ind[1], 1] = 204
+
+    # crop score field
+    img = img[:height-12, :, :]
+
+    # Remove numbers and enlarge speed bar
+    # for i in range(88, 94):
+    #     img[i, 0:12, :] = img[i, 12, :]
+
+    # make car black
+    car_ind = np.where(img[:, :, 0] == 204)
+    img[car_ind[0], car_ind[1], :] = 0
+
+    # make curbs white
+    curb_ind = np.where(img[:, :, 0] == 255)
+    img[curb_ind[0], curb_ind[1], :] = 255
+
+    # Scale between 0 and 1
+    img = (img - np.min(img)) / (np.max(img) - np.min(img))
+    return img
+
 
 def create_gif(frames, interval, dpi, save_path):
 

@@ -4,11 +4,6 @@ import os, sys, random
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow_probability.python.distributions import MultivariateNormalTriL
-main_proj_dir = os.path.dirname(os.path.dirname(sys.path[0]))
-sys.path.append(main_proj_dir)
-sys.path.append(os.path.join(main_proj_dir, 'gym_multi_car_racing'))
-sys.path.append(os.path.join(main_proj_dir, 'algorithms', 'DDPG'))
-sys.path.append(os.path.join(main_proj_dir, 'tools'))
 from aux_functions import *
 from multi_car_racing import *
 from memory_noise_models import *
@@ -26,6 +21,7 @@ class DDPG(object):
 
         self.noise_type = self.config['noise_type'].lower()
         self.noise_std = np.array(self.config['noise_std'], dtype=np.float32).reshape(-1, )
+        self.noise_mean = np.array(self.config['noise_mean'], dtype=np.float32).reshape(-1, )
         self.noise_scale = self.config['noise_scale']
         self.action_dim = self.config['action_dim']
         self.tau = self.config['tau']
@@ -64,7 +60,7 @@ class DDPG(object):
         self.critic_model = self._build_critic_network(name='critic')
         self.target_critic_model = self._build_critic_network(name='target_critic')
 
-        if self.config['train_or_test'] == 'train' and self.config['ckpt_load'] is None:
+        if self.config['train_or_test'] == 'train' and self.config['ckpt_load'] <= 0:
             # initialize the target and actual models in the same way
             self.target_actor_model.set_weights(self.actor_model.get_weights())
             self.target_critic_model.set_weights(self.critic_model.get_weights())
@@ -120,14 +116,28 @@ class DDPG(object):
 
     def _set_noise_dist(self):
         if self.noise_type == 'ou':
-            self.noise_mean = np.zeros((self.action_dim, ), dtype=np.float32)
+            # if self.action_dim == 2:
+            #     self.noise_mean = np.array([0, -0.8], dtype=np.float32)
+            # else:
+            # self.noise_mean = np.zeros((self.action_dim, ), dtype=np.float32)
+        
+            # else:
+            #     self.noise_mean = 0.5 * np.ones((self.action_dim, ), dtype=np.float32)
+
             if self.noise_std.size != self.action_dim:
                 assert 1==0, 'OU Noise std shape is not compatible with provided action dimension!'
             else:
                 self.noise = NoiseGenerator(self.noise_mean, self.noise_std)
         else:
-            self.noise_mean = np.zeros((self.action_dim, ), dtype=tf.float32)
-            self.noise_cov = self.noise_scale * np.eye(self.action_dim, dtype=tf.float32)
+            # if self.action_dim == 2:
+            # self.noise_mean = np.zeros((self.action_dim, ), dtype=np.float32)
+            # else:
+            #     self.noise_mean = 0.5 * np.ones((self.action_dim, ), dtype=np.float32)
+
+            if self.noise_std.size != self.action_dim:
+                assert 1==0, 'Normal noise scale shape is not compatible with provided action dimension!'
+            else:
+                self.noise_cov = np.diag(self.noise_scale)
             self.noise_std = compute_cholesky_if_possible(self.cov_noise, type_jitter='add')
             self.noise = MultivariateNormalTriL(self.noise_mean, self.noise_std)
         
@@ -163,9 +173,9 @@ class DDPG(object):
         net = tf.keras.layers.Dense(64, activation='relu', kernel_initializer=self.initializer_layer, kernel_regularizer=self.rf_actor)(net)
         
         # get the actions
-        if self.action_dim in [2, 3]:
+        if self.action_dim == 2:
             act = tf.keras.layers.Dense(self.action_dim, activation='tanh', kernel_initializer=self.initializer_layer, kernel_regularizer=self.rf_actor)(net)
-        elif self.action_dim == 4:
+        elif self.action_dim in [3,4]:
             act = tf.keras.layers.Dense(self.action_dim, activation='sigmoid', kernel_initializer=self.initializer_layer, kernel_regularizer=self.rf_actor)(net)
 
         # build actor model
@@ -202,22 +212,24 @@ class DDPG(object):
         if self.noise_type == 'ou':
             return self.noise.generate()
         else:
-            return self.noise.sample(sample_shape=1).numpy()
+            return self.noise.sample(sample_shape=1).numpy().reshape(-1, )
 
 
     def get_action(self, state):
-        if len(state.shape) == 3:
-            num_pix_w, num_pix_h, num_ch = state.shape
-            state = (state.reshape(1, num_pix_w, num_pix_h, num_ch) - np.min(state)) / (np.max(state) - np.min(state))
+        # if len(state.shape) == 3:
+        #     num_pix_w, num_pix_h, num_ch = state.shape
+        #     state = (state.reshape(1, num_pix_w, num_pix_h, num_ch) - np.min(state)) / (np.max(state) - np.min(state))
+        
+        state = process_image(state)
 
         # get the action from actor network
-        action_before = self.actor_model(state, training=False).numpy()
+        action_before = self.actor_model(np.expand_dims(state, axis=0), training=False).numpy()
         action_before = action_before[0] + self.generate_noise()
         
         if self.action_dim == 2:
             action = [action_before[0], action_before[1].clip(0, 1),  -action_before[1].clip(-1, 0)]
         elif self.action_dim == 3:
-            action = action_before
+            action = [2*action_before[0] - 1, action_before[1], action_before[2]]
         elif self.action_dim == 4:
             right_left = 1 if action_before[-1] > 0.5 else -1
             action = [action_before[0], action_before[1], action_before[2]]
@@ -238,14 +250,13 @@ class DDPG(object):
 
     @tf.function
     def update_network_params(self, states, actions, rewards, next_states, terminals):
-
         # update critic model
         with tf.GradientTape(persistent=True) as tape:
             next_actions = self.target_actor_model(next_states, training=True)
             next_q_vals = self.target_critic_model([next_states, next_actions], training=True)
-            y = rewards + self.gamma * next_q_vals # tf.multiply((1-terminal_batch), 
+            y = rewards + self.gamma * tf.multiply((1-terminals),  next_q_vals) #
 
-            loss_critic = tf.math.reduce_mean( tf.square( self.critic_model([states, actions], training=True) - y ) )
+            loss_critic = tf.math.reduce_mean( tf.square( self.critic_model([states, actions], training=True) - y ) ) + tf.reduce_sum(self.critic_model.losses)
 
         critic_gradients = tape.gradient(loss_critic, self.critic_model.trainable_variables)
         self.optimizer_critic.apply_gradients(zip(critic_gradients, self.critic_model.trainable_variables))
@@ -253,7 +264,7 @@ class DDPG(object):
         # update actor model
         with tf.GradientTape(persistent=True) as tape:
             q_vals = self.critic_model([states, self.actor_model(states, training=True)], training=True)
-            loss_actor = -tf.math.reduce_mean(q_vals)  
+            loss_actor = -tf.math.reduce_mean(q_vals) + tf.reduce_sum(self.actor_model.losses)
 
         actor_gradients = tape.gradient(loss_actor, self.actor_model.trainable_variables)
         self.optimizer_actor.apply_gradients(zip(actor_gradients, self.actor_model.trainable_variables))
@@ -263,9 +274,9 @@ class DDPG(object):
         # sample the batch
         states, actions, rewards, next_states, terminals = self.memory.sample(self.batch_size)
         
-        num_pix_w, num_pix_h, num_ch = states.shape[-3], states.shape[-2], states.shape[-1]
-        states = tf.constant(states.reshape(-1, num_pix_w, num_pix_h, num_ch), dtype=tf.float32)
-        next_states = tf.constant(next_states.reshape(-1, num_pix_w, num_pix_h, num_ch), dtype=tf.float32)
+        num_pix_h, num_pix_w, num_ch = states.shape[-3], states.shape[-2], states.shape[-1]
+        states = tf.constant(states.reshape(-1, num_pix_h, num_pix_w, num_ch), dtype=tf.float32)
+        next_states = tf.constant(next_states.reshape(-1, num_pix_h, num_pix_w, num_ch), dtype=tf.float32)
         actions = tf.constant(actions, dtype=tf.float32)
         rewards = tf.constant(rewards, dtype=tf.float32)
         terminals = tf.cast(tf.constant(terminals, dtype=tf.bool), dtype=tf.float32)

@@ -3,6 +3,32 @@ from collections import deque, namedtuple
 import warnings
 import random
 import numpy as np
+import copy
+import sys, os
+sys.path.append(os.path.dirname(__file__))
+from aux_functions import *
+
+
+class EarlyStoppingCallback:
+    def __init__(self, patience):
+        self.patience = patience
+        self.best_ep_reward = 0
+        self.wait = 0
+
+    def __call__(self, ep_reward):
+        temp_reward = copy.deepcopy(ep_reward)
+        temp_reward = np.array(temp_reward).reshape(-1,)[0]
+        if temp_reward >= self.best_ep_reward:
+            self.best_ep_reward = temp_reward
+            self.wait = 0
+        else:
+            self.wait += 1
+        
+        if self.wait >= self.patience:
+            return True
+        else:
+            return False
+
 
 class NoiseGenerator:
     def __init__(self, mean, std_dev, theta=0.3, dt=5e-2):
@@ -63,10 +89,14 @@ class ReplayBuffer(object):
         # add the experience to the buffer
         ind = self.cur_size % self.max_memory_size
 
-        self.states[ind] = (state.reshape(self.num_pix_w, self.num_pix_h, self.num_ch) - np.min(state))/ (np.max(state) - np.min(state))
+        pr_state = process_image(state)
+        pr_next_state = process_image(next_state)
+        # self.states[ind] = (state.reshape(self.num_pix_w, self.num_pix_h, self.num_ch) - np.min(state))/ (np.max(state) - np.min(state))
+        self.states[ind] = pr_state
         self.actions[ind] = action
         self.rewards[ind] = reward
-        self.next_states[ind] = (next_state.reshape(self.num_pix_w, self.num_pix_h, self.num_ch) - np.min(next_state)) / (np.max(next_state) - np.min(next_state))
+        # self.next_states[ind] = (next_state.reshape(self.num_pix_w, self.num_pix_h, self.num_ch) - np.min(next_state)) / (np.max(next_state) - np.min(next_state))
+        self.next_states[ind] = pr_next_state
         self.terminals[ind] = terminal
 
         # increase the current buffer size
