@@ -34,12 +34,15 @@ def get_agent_for_algo(algo):
     elif algo == 'ddqn':
         from dueling.DDQN import DDQNTesterAgent
         return DDQNTesterAgent
+    elif algo == 'hc':
+        from HC.hc import HCTesterAgent
+        return HCTesterAgent
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
         "--algo",
-        choices=("a3c", "dqn", "ddpg", "ddqn", "ppo"),
+        choices=("a3c", "dqn", "ddpg", "ddqn", "ppo", "hc"),
         type=str,
         help="Select algorithm.",
     )
