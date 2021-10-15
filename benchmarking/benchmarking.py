@@ -18,13 +18,12 @@ import os, sys
 import numpy as np
 sys.path.insert(0, '../algorithms')
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-from A3C.a3c import A3CTesterAgent
-from dueling.DDQN import DDQNTesterAgent
-# Add your TesterAgent import here
+# Add your TesterAgent import in get_agent_for_algo
 
 
 def get_agent_for_algo(algo):
     if algo == 'a3c':
+        from A3C.a3c import A3CTesterAgent
         return A3CTesterAgent
     elif algo == 'ppo':
         pass
@@ -33,6 +32,7 @@ def get_agent_for_algo(algo):
     elif algo == 'ddpg':
         pass
     elif algo == 'ddqn':
+        from dueling.DDQN import DDQNTesterAgent
         return DDQNTesterAgent
 
 if __name__ == "__main__":
