@@ -14,33 +14,39 @@ from tensorflow import keras
 import tensorflow.keras.backend as K
 from model_tester import TesterAgent
 from gym_multi_car_racing import MultiCarRacing
-import torch
 
+
+# ACTIONS  = [
+#             (-1, 0.6, 0.2), (0, 1, 0.2), (1, 0.6, 0.2), #           Action Space Structure
+#             (-1, 0.6,   0), (0, 1,   0), (1, 0.6,   0), #        (Steering Wheel, Gas, Break)
+#             (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2), # Range        -1~1       0~1   0~1
+#             (-1, 0,   0), (0, 0,   0), (1, 0,   0)
+#            ]
 
 ACTIONS  = [
-            (-1, 0.6, 0.2), (0, 1, 0.2), (1, 0.6, 0.2), #           Action Space Structure
-            (-1, 0.6,   0), (0, 1,   0), (1, 0.6,   0), #        (Steering Wheel, Gas, Break)
+            (-1, 0.2, 0.2), (0, 0.2, 0.2), (1, 0.2, 0.2), #           Action Space Structure
+            (-1, 0.2,   0), (0, 0.6,   0), (1, 0.2,   0), #        (Steering Wheel, Gas, Break)
             (-1, 0, 0.2), (0, 0, 0.2), (1, 0, 0.2), # Range        -1~1       0~1   0~1
             (-1, 0,   0), (0, 0,   0), (1, 0,   0)
            ]
 
+
 def process_state_image(state, car_id):
     state = state[car_id, ...]
+    #state = np.dot(state, [0.299, 0.587, 0.144])
     state = cv2.cvtColor(state, cv2.COLOR_BGR2GRAY)
     state = state.astype(float)
     state /= 255.0
     return state
 
 def add_frame(s_new, s_stack):
-    # s_stack = torch.roll(s_stack, shifts=-1, dims=1)
-    # s_stack[:, -1, :, :] = s_new
     s_stack[:,:,:-1] = s_stack[:,:,1:]
     s_stack[:,:,-1] = s_new
     return s_stack
     
 class DDQNTesterAgent(TesterAgent):
     def __init__(self,
-                 model_path='..\\algorithms\dueling\images\save\\26_09_15_27\episode_500.h5',
+                 model_path='..\\algorithms\dueling\Image\save\\26_09_15_27\episode_500.h5',
                  car_id=0,
                  num_frames=4,
                  learning_rate = 0.001,
