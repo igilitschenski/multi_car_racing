@@ -55,6 +55,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--render",
         action='store_true',
+        default=False,
         help="Render episodes during test.",
     )
     args = parser.parse_args()
