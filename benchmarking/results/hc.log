@@ -1,3 +1,3 @@
-number of test episodes: 3
-average score: 50.86274306323699
-std of score: 165.33116781397564
+number of test episodes: 1000
+average score: 147.5405416165872
+std of score: 176.4541612516256
