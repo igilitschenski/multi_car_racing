@@ -2,7 +2,9 @@ import gym_multi_car_racing
 from gym_multi_car_racing import MultiCarRacing
 import gym
 import numpy as np
-
+import matplotlib.pyplot as plt
+from matplotlib import animation
+import os
 
 class TesterAgent:
     def __init__(self):
@@ -25,6 +27,8 @@ class ModelTester:
                  agent,  # This should be inherited from TesterAgent and already initialized with your agent
                  num_test_episodes=10,
                  render=False,
+                 save_gif=False,
+                 save_gif_idx=0,
                  ):
         self.agent = agent
         self.setup_action_space_func = agent.setup_action_space
@@ -32,6 +36,9 @@ class ModelTester:
         self.num_test_episodes = num_test_episodes
         self.env = None
         self.render = render
+        self.save_gif = save_gif
+        self.gif_frames = []
+        self.save_gif_idx = save_gif_idx
 
     def _create_env(self):
         env = gym.make("MultiCarRacing-v0",
@@ -61,6 +68,10 @@ class ModelTester:
                 score_arr.append(score)
                 if self.render:
                     self.env.render()
+                if self.save_gif and n_epi == self.save_gif_idx:
+                    self.gif_frames.append(self.env.render(mode="rgb_array"))
+            if self.save_gif and n_epi == self.save_gif_idx:
+                _save_frames_as_gif(self.gif_frames)
             print('Final score of episode: ', score)
         self.env.close()
         score_arr = np.array(score_arr)
@@ -71,3 +82,21 @@ class ModelTester:
             'num_episodes': self.num_test_episodes
         }
         return eval_data
+
+def _save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
+    frames = [f[0] for f in frames]
+    plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
+
+    patch = plt.imshow(frames[0])
+    plt.axis('off')
+
+    def animate(i):
+        patch.set_data(frames[i])
+
+    anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frames), interval=2.0)
+    writergif = animation.PillowWriter(fps=60)
+
+    # plt.show()
+    anim.save(os.path.join(path, filename), writer=writergif)
+
+    return -1
