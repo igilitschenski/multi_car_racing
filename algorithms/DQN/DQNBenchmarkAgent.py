@@ -15,7 +15,7 @@ from model_tester import TesterAgent
 from gym_multi_car_racing import MultiCarRacing
 
 
-# smoother 10 actions below
+# smooth 10 actions below
 ACTIONS  = [(-1, 0.85, 0.15), (0, 0.85, 0.15), (1, 0.85, 0.15), (0, 1,   0), 
         (-1, 0, 0.1), (0, 0, 0.2), (1, 0, 0.1),
         (-1, 0,   0), (0, 0,   0), (1, 0,   0)]
@@ -36,7 +36,7 @@ def add_frame(s_new, s_stack):
 
 class DQNTesterAgent(TesterAgent):
     def __init__(self,
-                 model_path='algorithms\\DQN\\save\\ten_soft_action_acc_reward_true\\episode_1000.h5',
+                 model_path='algorithms\\DQN\\saved_model_parameters\\ten_soft_action_acc_reward_true\\episode_1000.h5',
                  car_id=0,
                  num_frames=3,
                  learning_rate = 0.001,
