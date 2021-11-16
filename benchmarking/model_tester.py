@@ -87,20 +87,22 @@ class ModelTester:
         }
         return eval_data
 
-def _save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
-    frames = [f[0] for f in frames]
-    plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
+def _save_frames_as_gif(frames, path='./', filename='gym_animation'):
+    num_cars = frames[0].shape[0]
+    for i in range(num_cars):
+        frame = [f[i] for f in frames]
+        plt.figure(figsize=(frame[0].shape[1] / 72.0, frame[0].shape[0] / 72.0), dpi=72)
 
-    patch = plt.imshow(frames[0])
-    plt.axis('off')
+        patch = plt.imshow(frame[0])
+        plt.axis('off')
 
-    def animate(i):
-        patch.set_data(frames[i])
+        def animate(i):
+            patch.set_data(frame[i])
 
-    anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frames), interval=2.0)
-    writergif = animation.PillowWriter(fps=60)
+        anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frame), interval=2.0)
+        writergif = animation.PillowWriter(fps=60)
 
-    # plt.show()
-    anim.save(os.path.join(path, filename), writer=writergif)
-
+        # plt.show()
+        fname = filename + '_' + str(i) + '.gif'
+        anim.save(os.path.join(path, fname), writer=writergif)
     return -1
