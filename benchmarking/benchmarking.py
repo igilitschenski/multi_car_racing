@@ -16,9 +16,7 @@ from model_tester import *
 from argparse import ArgumentParser
 import os, sys
 import numpy as np
-#sys.path.insert(0, '../algorithms')
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'algorithms'))
-
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # Add your TesterAgent import in get_agent_for_algo
 
@@ -30,7 +28,8 @@ def get_agent_for_algo(algo):
     elif algo == 'ppo':
         pass
     elif algo == 'dqn':
-        pass
+        from DQN.DQNBenchmarkAgent import DQNTesterAgent
+        return DQNTesterAgent
     elif algo == 'ddpg':
         pass
     elif algo == 'ddqn':
@@ -44,6 +43,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
         "--algo",
+        default='dqn',
         choices=("a3c", "dqn", "ddpg", "ddqn", "ppo", "hc"),
         type=str,
         help="Select algorithm.",
