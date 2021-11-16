@@ -24,25 +24,26 @@ class TesterAgent:
 
 class ModelTester:
     def __init__(self,
-                 agent,  # This should be inherited from TesterAgent and already initialized with your agent
+                 agents,  # This should be inherited from TesterAgent and already initialized with your agent
                  num_test_episodes=10,
                  render=False,
                  save_gif=False,
                  save_gif_idx=0,
                  ):
-        self.agent = agent
-        self.setup_action_space_func = agent.setup_action_space
-        self.observation_type = agent.get_observation_type()
+        self.agents = agents
+        self.setup_action_space_func = agents[0].setup_action_space
+        self.observation_type = agents[0].get_observation_type()
         self.num_test_episodes = num_test_episodes
         self.env = None
         self.render = render
         self.save_gif = save_gif
         self.gif_frames = []
         self.save_gif_idx = save_gif_idx
+        self.num_cars = len(agents)
 
     def _create_env(self):
         env = gym.make("MultiCarRacing-v0",
-                       num_agents=1,
+                       num_agents=self.num_cars,
                        direction='CCW',
                        use_random_direction=True,
                        backwards_flag=True,
@@ -62,7 +63,10 @@ class ModelTester:
             done = False
             s = self.env.reset()
             while not done:
-                action_vec = self.agent.state_to_action(s)
+                action_vec = []
+                for i in range(self.num_cars):
+                    action_vec.append(self.agents[i].state_to_action(s))
+                action_vec = np.stack(action_vec, axis=0)
                 s, r, done, info = self.env.step(action_vec)
                 score = info['total_score']
                 score_arr.append(score)

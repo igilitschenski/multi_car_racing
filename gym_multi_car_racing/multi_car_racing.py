@@ -200,11 +200,11 @@ class MultiCarRacing(gym.Env, EzPickle):
         self.get_reward_func = get_reward_func
 
         # Normally observations are raw images, but we will rather use 32 features from the game
-        # self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-        self.observation_lb = -2000 * np.ones((1, self.num_feats))
-        self.observation_ub = 2000 * np.ones((1, self.num_feats))
-        self.observation_space = spaces.Box(self.observation_lb, self.observation_ub,
-                                            shape=(self.num_agents, self.num_feats), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+        # self.observation_lb = -2000 * np.ones((1, self.num_feats))
+        # self.observation_ub = 2000 * np.ones((1, self.num_feats))
+        # self.observation_space = spaces.Box(self.observation_lb, self.observation_ub,
+        #                                     shape=(self.num_agents, self.num_feats), dtype=np.float32)
 
         self.observation_type = observation_type
         self.episode_end_func = episode_end_func
@@ -465,7 +465,7 @@ class MultiCarRacing(gym.Env, EzPickle):
                 step_reward[car_id] += abs(self.all_feats[car_id, 47])*self.reward_weights[1] #normalize the velocity later
                 step_reward[car_id] += abs(self.all_feats[car_id, 3])*self.reward_weights[2] #normalize angle dif later
                 if action is not None:
-                    step_reward[car_id] -= action[2]*self.reward_weights[1]
+                    step_reward[car_id] -= action[car_id, 2]*self.reward_weights[1]
                 step_reward[car_id] += abs(self.all_feats[car_id,45]-self.all_feats[car_id,46])*self.reward_weights[3]
 
                 ################

@@ -16,7 +16,9 @@ from model_tester import *
 from argparse import ArgumentParser
 import os, sys
 import numpy as np
-sys.path.insert(0, '../algorithms')
+#sys.path.insert(0, '../algorithms')
+sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'algorithms'))
+
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # Add your TesterAgent import in get_agent_for_algo
 
@@ -70,10 +72,18 @@ if __name__ == "__main__":
         help="Index of episode to save gif of (starting from 0).",
         default=0
     )
+    parser.add_argument(
+        "--num_cars",
+        type=int,
+        help="Number of cars.",
+        default=1
+    )
     args = parser.parse_args()
+    agents = []
+    for i in range(args.num_cars):
+        agents.append(get_agent_for_algo(args.algo)(car_id=i))
 
-    agent = get_agent_for_algo(args.algo)()
-    tester = ModelTester(agent=agent,
+    tester = ModelTester(agents=agents,
                          num_test_episodes=args.num_test_episodes,
                          render=args.render,
                          save_gif=args.save_gif,
