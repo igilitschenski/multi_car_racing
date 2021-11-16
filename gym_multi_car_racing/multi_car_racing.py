@@ -64,9 +64,9 @@ BORDER_MIN_COUNT = 4
 ROAD_COLOR = [0.4, 0.4, 0.4]
 
 # Specify different car colors
-CAR_COLORS = [(0.8, 0.0, 0.0), (0.0, 0.0, 0.8),
-              (0.0, 0.8, 0.0), (0.0, 0.8, 0.8),
-              (0.8, 0.8, 0.8), (0.0, 0.0, 0.0),
+CAR_COLORS = [(0.8, 0.0, 0.0), (0.0, 0.2149, 0.5),
+              (0.0, 0.312, 0.0), (0.1832, 0.1832, 0.1832),
+              (0.4, 0.1, 0.043), (0.4, 0.0, 0.558),
               (0.8, 0.0, 0.8), (0.8, 0.8, 0.0)]
 
 # Distance between cars
@@ -874,7 +874,7 @@ class MultiCarRacing(gym.Env, EzPickle):
         horiz_ind(30, -0.8 * self.cars[agent_id].hull.angularVelocity, (1, 0, 0))
         gl.glEnd()
         self.score_label.text = "%04i" % self.reward[agent_id]
-        self.score_label.draw()
+        #self.score_label.draw()
 
         # Render backwards flag if driving backward and backwards flag render is enabled
         if self.driving_backward[agent_id] and self.backwards_flag:
