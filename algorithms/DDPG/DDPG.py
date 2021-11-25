@@ -26,6 +26,7 @@ class DDPGTesterAgent(TesterAgent):
 
         super().__init__(**kwargs)
         self.agent = self._load_model(save_path)
+        self.car_id = car_id
 
     def _load_model(self, save_path):
         noise_type = 'ou'
@@ -60,7 +61,7 @@ class DDPGTesterAgent(TesterAgent):
         If you are using frame buffer see example in _update_frame_buffer
         how to take care of that.
         """
-        action, _ = self.agent.get_action(s)
+        action, _ = self.agent.get_action(s, self.car_id)
         return action/4
 
     
@@ -288,12 +289,12 @@ class DDPG(object):
             return self.noise.sample(sample_shape=1).numpy().reshape(-1, )
 
 
-    def get_action(self, state):
+    def get_action(self, state, car_id=0):
         # if len(state.shape) == 3:
         #     num_pix_w, num_pix_h, num_ch = state.shape
         #     state = (state.reshape(1, num_pix_w, num_pix_h, num_ch) - np.min(state)) / (np.max(state) - np.min(state))
         
-        state = process_image(state)
+        state = process_image(state, car_id)
 
         # get the action from actor network
         action_before = self.actor_model(np.expand_dims(state, axis=0), training=False).numpy()

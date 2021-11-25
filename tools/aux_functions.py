@@ -73,10 +73,12 @@ def get_grayscale_from_green(image):
 
     return img[:, 1]
 
-def process_image(image):
+def process_image(image, car_id):
     # 204 for dark green, 229 for light green, 204 for car red
     # crop 12 pixels from height
+    image = np.expand_dims(image[car_id, ...], axis=0)
     img = image.copy()
+
     height, width, ch = (image.shape[-3], image.shape[-2], image.shape[-1])
     img = np.reshape(image, (height, width, ch))
 
