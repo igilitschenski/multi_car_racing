@@ -68,21 +68,22 @@ class ModelTester:
                     action_vec.append(self.agents[i].state_to_action(s))
                 action_vec = np.stack(action_vec, axis=0)
                 s, r, done, info = self.env.step(action_vec)
-                score = info['total_score']
-                score_arr.append(score)
                 if self.render:
                     self.env.render()
                 if self.save_gif and n_epi == self.save_gif_idx:
                     self.gif_frames.append(self.env.render(mode="rgb_array"))
             if self.save_gif and n_epi == self.save_gif_idx:
                 _save_frames_as_gif(self.gif_frames)
+            score = info['total_score']
+            score_arr.append(score)
             print('Final score of episode: ', score)
         self.env.close()
         score_arr = np.array(score_arr)
+        print('ggfgfgfgfg', score_arr.shape)
         eval_data = {
             'scores': score_arr,
-            'avg_score': np.mean(score_arr),
-            'std_score': np.std(score_arr),
+            'avg_score': np.mean(score_arr, axis=0),
+            'std_score': np.std(score_arr, axis=0),
             'num_episodes': self.num_test_episodes
         }
         return eval_data
