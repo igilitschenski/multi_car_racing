@@ -79,7 +79,6 @@ class ModelTester:
             print('Final score of episode: ', score)
         self.env.close()
         score_arr = np.array(score_arr)
-        print('ggfgfgfgfg', score_arr.shape)
         eval_data = {
             'scores': score_arr,
             'avg_score': np.mean(score_arr, axis=0),

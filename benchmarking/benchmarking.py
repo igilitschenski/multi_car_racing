@@ -79,6 +79,12 @@ if __name__ == "__main__":
         help="Number of cars. Only used if a single algorithm is selected.ß ",
         default=1
     )
+    parser.add_argument(
+        "--output_folder",
+        type=str,
+        default='results',
+        help='Folder to save log files',
+    )
     args = parser.parse_args()
     agents = []
     args.algo = args.algo * args.num_cars if len(args.algo) == 1 else args.algo
@@ -93,8 +99,12 @@ if __name__ == "__main__":
                          )
     print('Testing {} algorithm...'.format(args.algo))
     eval_data = tester.evaluate()
-    log_file = 'results/{}.log'.format(args.algo)
-    np_file = 'results/{}.npy'.format(args.algo)
+
+    if not os.path.exists(args.output_folder):
+        os.makedirs(args.output_folder)
+
+    log_file = os.path.join(args.output_folder, '{}.log'.format(args.algo))
+    np_file = os.path.join(args.output_folder, '{}.npy'.format(args.algo))
     print('Testing finished, saving results to {} and {}...'.format(log_file, np_file))
     with open(log_file, 'w') as f:
         f.write('number of test episodes: {}\n'.format(eval_data['num_episodes']))
