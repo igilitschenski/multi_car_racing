@@ -31,7 +31,8 @@ def get_agent_for_algo(algo):
         from DQN.DQNBenchmarkAgent import DQNTesterAgent
         return DQNTesterAgent
     elif algo == 'ddpg':
-        pass
+        from DDPG.DDPG import DDPGTesterAgent
+        return DDPGTesterAgent 
     elif algo == 'ddqn':
         from dueling.DDQN import DDQNTesterAgent
         return DDQNTesterAgent
