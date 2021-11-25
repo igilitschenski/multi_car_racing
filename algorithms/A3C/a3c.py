@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
 import torch.multiprocessing as mp
-import time, sys
+import time, sys, os
 import gym_multi_car_racing
 from gym_multi_car_racing import MultiCarRacing
 import numpy as np
@@ -37,6 +37,8 @@ VELOCITY_REWARD_LOW = -10.0
 ANGLE_DIFF_REWARD = 0.0
 ON_GRASS_REWARD = -1.0
 BACKWARD_REWARD = 0.0
+
+MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'saved_models/A3C/a3c_12actions_T_5_ent_0_01.pth')
 
 def to_grayscale(img):
     return np.dot(img, [0.299, 0.587, 0.144])
@@ -243,7 +245,7 @@ def test(global_model):
 
 class A3CTesterAgent(TesterAgent):
     def __init__(self,
-                 model_path='../saved_models/A3C/a3c_12actions_T_5_ent_0_01.pth',
+                 model_path=MODEL_PATH,
                  car_id=0,
                  num_frames=5,
                  actions=ACTIONS,
