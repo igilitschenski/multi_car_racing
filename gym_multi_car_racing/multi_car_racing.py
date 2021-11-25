@@ -64,9 +64,12 @@ BORDER_MIN_COUNT = 4
 ROAD_COLOR = [0.4, 0.4, 0.4]
 
 # Specify different car colors
-CAR_COLORS = [(0.8, 0.0, 0.0), (0.0, 0.2149, 0.5),
-              (0.0, 0.312, 0.0), (0.1832, 0.1832, 0.1832),
-              (0.4, 0.1, 0.043), (0.4, 0.0, 0.558),
+# gray scale conversion: R * 0.299 + G * 0.587 + B * 0.114.
+# Red color corresponds to 0.8 * 0.299 =  0.2392 in gray scale
+
+CAR_COLORS = [(0.8, 0.0, 0.0), (0.0, 0.31, 0.5),
+              (0.0, 0.407, 0.0), (0.2392, 0.2392, 0.2392),
+              (0.4, 0.1, 0.534), (0.5, 0.0, 0.787),
               (0.8, 0.0, 0.8), (0.8, 0.8, 0.0)]
 
 # Distance between cars
