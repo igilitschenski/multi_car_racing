@@ -26,7 +26,8 @@ def get_agent_for_algo(algo):
         from A3C.a3c import A3CTesterAgent
         return A3CTesterAgent
     elif algo == 'ppo':
-        pass
+        from PPO.ppo_image import PPOTesterAgent
+        return PPOTesterAgent
     elif algo == 'dqn':
         from DQN.DQNBenchmarkAgent import DQNTesterAgent
         return DQNTesterAgent
