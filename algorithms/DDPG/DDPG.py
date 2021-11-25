@@ -4,9 +4,74 @@ import os, sys, random
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow_probability.python.distributions import MultivariateNormalTriL
+# sys.path.insert(0, '../benchmarking')
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'benchmarking'))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'tools'))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'gym_multi_car_racing'))
+sys.path.append(os.path.join(os.path.dirname(__file__)))
+from model_tester import TesterAgent
+from gym import spaces
 from aux_functions import *
 from multi_car_racing import *
 from memory_noise_models import *
+from config_default import *
+
+
+class DDPGTesterAgent(TesterAgent):
+    def __init__(self,
+                 env,
+                 save_path='../../.',
+                 **kwargs
+                 ):
+
+        super().__init__(**kwargs)
+        self.env = env
+        self.agent = self._load_model(save_path)
+
+    def _load_model(self, save_path):
+        noise_type = 'ou'
+        noise_std = '0.8,0.2'
+        action_dim = 2
+        state_shape = (96,96,3)
+
+        decay_noise_steps = 10
+        decay_noise_rate = 0.99
+        train_or_test = 'test'
+        ckpt_load = 1253
+
+        config_write = dict(noise_type=noise_type, noise_std=noise_std, decay_noise_rate=decay_noise_rate, decay_noise_steps=decay_noise_steps, train_or_test=train_or_test, ckpt_load=ckpt_load, action_dim=action_dim)
+        config = set_config_default_DDPG()
+        config = add_settings_to_config(config, config_write)
+
+        agent = DDPG(config, state_shape, self.env)
+        return agent
+
+
+    def state_to_action(self, s):
+        """
+        This function should take the most recent state and return the
+        action vector in the exact same form it is needed for the environment.
+        If you are using frame buffer see example in _update_frame_buffer
+        how to take care of that.
+        """
+        action, _ = self.agent.get_action(s)
+        return action/4
+
+    
+    @staticmethod
+    def setup_action_space(env):
+        """
+        This should be the same action space setup function that you used for training.
+        Make sure that the actions set here are the same as the ones used to train the model.
+        """
+        env.action_space = spaces.Box( env.action_lb, env.action_ub, dtype=np.float32)  # (steer, gas, brake) x N
+
+    @staticmethod
+    def get_observation_type():
+        """
+        Simply return 'frames' or 'features'
+        """
+        return 'frames'
 
 
 class DDPG(object):
