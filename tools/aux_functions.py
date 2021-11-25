@@ -85,15 +85,15 @@ def process_image(image):
     img[light_green_ind[0], light_green_ind[1], 1] = 204
 
     # crop score field
-    img = img[:height-12, :, :]
+    # img = img[:height-12, :, :]
 
     # Remove numbers and enlarge speed bar
     # for i in range(88, 94):
     #     img[i, 0:12, :] = img[i, 12, :]
 
     # make car black
-    car_ind = np.where(img[:, :, 0] == 204)
-    img[car_ind[0], car_ind[1], :] = 0
+    # car_ind = np.where(img[:, :, 0] == 204)
+    # img[car_ind[0], car_ind[1], :] = 0
 
     # make curbs white
     curb_ind = np.where(img[:, :, 0] == 255)

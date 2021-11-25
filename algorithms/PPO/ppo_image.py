@@ -22,7 +22,7 @@ from matplotlib import animation
 sys.path.insert(0, '../../benchmarking')
 from model_tester import TesterAgent
 
-
+MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'saved_models/PPO/state_dict_model_220.pt')
 
 
 #Hyperparameters
@@ -383,7 +383,7 @@ def evaluate(self):
 
 class PPOTesterAgent(TesterAgent):
     def __init__(self,
-                 model_path='./saved_models/PPO/state_dict_model_220.pt',
+                 model_path=MODEL_PATH,
                  car_id=0,
                  num_frames=5,
                  actions=ACTIONS,

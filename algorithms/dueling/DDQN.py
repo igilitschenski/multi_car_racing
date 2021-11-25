@@ -30,6 +30,7 @@ ACTIONS  = [
             (-1, 0,   0), (0, 0,   0), (1, 0,   0)
            ]
 
+MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'algorithms/dueling/Image/save/26_09_15_27/episode_500.h5')
 
 def process_state_image(state, car_id):
     state = state[car_id, ...]
@@ -46,7 +47,7 @@ def add_frame(s_new, s_stack):
     
 class DDQNTesterAgent(TesterAgent):
     def __init__(self,
-                 model_path='..\\algorithms\dueling\Image\save\\26_09_15_27\episode_500.h5',
+                 model_path=MODEL_PATH,
                  car_id=0,
                  num_frames=4,
                  learning_rate = 0.001,
