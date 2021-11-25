@@ -45,10 +45,9 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
         "--algo",
-        default='dqn',
-        choices=("a3c", "dqn", "ddpg", "ddqn", "ppo", "hc"),
         type=str,
-        help="Select algorithm.",
+        nargs='+',
+        help='List of select algorithms. Options: a3c, dqn, ddpg, ddqn, ppo, hc',
     )
     parser.add_argument(
         "--num_test_episodes",
@@ -77,13 +76,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_cars",
         type=int,
-        help="Number of cars.",
+        help="Number of cars. Only used if a single algorithm is selected.ß ",
         default=1
     )
     args = parser.parse_args()
     agents = []
-    for i in range(args.num_cars):
-        agents.append(get_agent_for_algo(args.algo)(car_id=i))
+    args.algo = args.algo * args.num_cars if len(args.algo) == 1 else args.algo
+    for i, alg in enumerate(args.algo):
+        agents.append(get_agent_for_algo(alg)(car_id=i))
 
     tester = ModelTester(agents=agents,
                          num_test_episodes=args.num_test_episodes,
@@ -98,8 +98,9 @@ if __name__ == "__main__":
     print('Testing finished, saving results to {} and {}...'.format(log_file, np_file))
     with open(log_file, 'w') as f:
         f.write('number of test episodes: {}\n'.format(eval_data['num_episodes']))
-        f.write('average score: {}\n'.format(eval_data['avg_score']))
-        f.write('std of score: {}\n'.format(eval_data['std_score']))
+        for i, alg in enumerate(args.algo):
+            f.write('algorithm: {}, average score: {}, std of score: {}'.format(alg, eval_data['avg_score'][i], eval_data['std_score'][i]))
+            f.write('\n')
     np.save(np_file, eval_data)
 
 
