@@ -30,7 +30,8 @@ class DDPGTesterAgent(TesterAgent):
 
     def _load_model(self, save_path):
         noise_type = 'ou'
-        noise_std = [0.8, 0.2]
+        noise_std = [0.0, 0.4]
+        noise_mean = np.array([0.0, -0.1], dtype=np.float32)
         action_dim = 2
         state_shape = (96,96,3)
 
@@ -41,6 +42,7 @@ class DDPGTesterAgent(TesterAgent):
 
         config_write = dict(noise_type=noise_type,
                             noise_std=noise_std,
+                            noise_mean=noise_mean,
                             decay_noise_rate=decay_noise_rate,
                             decay_noise_steps=decay_noise_steps,
                             train_or_test=train_or_test,
