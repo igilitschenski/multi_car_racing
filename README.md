@@ -1,4 +1,6 @@
 # Multi-Car Racing Gym Environment
+<center><strong> Warning: This project is not under active maintenance.</strong></center>
+
 <img width="100%" src="https://user-images.githubusercontent.com/11874191/98051650-5339d900-1e02-11eb-8b75-7f241d8687ef.gif"></img>
 This repository contains `MultiCarRacing-v0` a multiplayer variant of Gym's original [`CarRacing-v0` environment](https://gym.openai.com/envs/CarRacing-v0/).
 
